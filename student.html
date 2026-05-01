@@ -62,11 +62,13 @@ const username = document.getElementById("loginUsername").value;
 const password = document.getElementById("loginPassword").value;
 
 
-try{
-
-await signInWithEmailAndPassword(auth,Email,password);
-
-const userDoc = await getDoc(doc(db,"users",username));
+signInWithEmailAndPassword(auth, email, password)
+  .then((userCredential) => {
+    window.location.href = "dashboard.html";
+  })
+  .catch((error) => {
+    alert(error.message);
+  });
 
 if(!userDoc.exists()){
 alert("User record missing");
