@@ -1,58 +1,87 @@
-
-<!-- ===================== student.html ===================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Student - Take Test</title>
+<title>Student Dashboard</title>
 <style>
 body { font-family: Arial; padding: 20px; }
-.q { margin-bottom: 15px; }
+.card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
 button { padding: 10px; margin-top: 10px; }
 </style>
 </head>
 <body>
 
-<h1 id="title"></h1>
-<form id="form"></form>
-<button onclick="submitTest()">Submit</button>
-<button onclick="window.close()">Close Tab</button>
+<h1>Student Dashboard</h1>
+<div id="dashboard"></div>
 
 <script>
-const params = new URLSearchParams(window.location.search);
-const index = params.get('test');
 const tests = JSON.parse(localStorage.getItem('tests') || '[]');
-const test = tests[index];
+const assigned = JSON.parse(localStorage.getItem('assignedTests') || '[]');
 
-document.getElementById('title').innerText = test.name;
+const dash = document.getElementById('dashboard');
 
-const form = document.getElementById('form');
+assigned.forEach(index => {
+  const test = tests[index];
+  if (!test) return;
 
-test.questions.forEach((q, i) => {
   const div = document.createElement('div');
-  div.className = 'q';
+  div.className = 'card';
   div.innerHTML = `
-    <p>${i+1}. ${q.q}</p>
-    ${['A','B','C','D'].map(letter => `
-      <label>
-        <input type="radio" name="q${i}" value="${letter}">
-        ${q[letter.toLowerCase()]}
-      </label><br>
-    `).join('')}
+    <strong>${test.name}</strong><br>
+    <button onclick="openTest(${index})">Start Test</button>
   `;
-  form.appendChild(div);
+  dash.appendChild(div);
 });
 
-function submitTest() {
-  let score = 0;
+function openTest(index) {
+  const test = tests[index];
+  const tab = window.open();
 
-  test.questions.forEach((q, i) => {
-    const selected = document.querySelector(`input[name=q${i}]:checked`);
-    if (selected && selected.value === q.correct) score++;
-  });
+  tab.document.write(`
+    <html>
+    <head>
+      <title>${test.name}</title>
+      <style>
+        body { font-family: Arial; padding: 20px; }
+      </style>
+    </head>
+    <body>
+      <h2>${test.name}</h2>
+      <form id="form">
+        ${test.questions.map((q, i) => `
+          <div>
+            <p>${i+1}. ${q.q}</p>
+            ${['A','B','C','D'].map(letter => `
+              <label>
+                <input type="radio" name="q${i}" value="${letter}">
+                ${q[letter.toLowerCase()]}
+              </label><br>
+            `).join('')}
+          </div>
+        `).join('')}
+      </form>
 
-  alert('Score: ' + score + '/' + test.questions.length);
+      <button onclick="submitTest()">Submit</button>
+      <button onclick="window.close()">Close Tab</button>
+
+      <script>
+        function submitTest() {
+          let score = 0;
+          const questions = ${JSON.stringify(tests)}[${index}].questions;
+
+          questions.forEach((q, i) => {
+            const selected = document.querySelector(\`input[name=q\${i}]:checked\`);
+            if (selected && selected.value === q.correct) score++;
+          });
+
+          alert('Score: ' + score + '/' + questions.length);
+        }
+      <\/script>
+    </body>
+    </html>
+  `);
+
+  tab.document.close();
 }
 </script>
 
