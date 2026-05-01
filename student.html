@@ -23,65 +23,42 @@ button { padding:10px 20px; margin:5px; }
 <button onclick="login()">Login</button>
 
 <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+    authDomain: "assessment-launcher439.firebaseapp.com",
+    projectId: "assessment-launcher439",
+    storageBucket: "assessment-launcher439.firebasestorage.app",
+    messagingSenderId: "654911094206",
+    appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+  };
 
-import {
-getAuth,
-createUserWithEmailAndPassword,
-signInWithEmailAndPassword,
-signOut
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-import {
-getFirestore,
-doc,
-setDoc,
-getDoc
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  window.login = async function() {
+    const email = document.getElementById("loginUsername").value;
+    const password = document.getElementById("loginPassword").value;
 
-const firebaseConfig = {
-apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-  authDomain: "assessment-launcher439.firebaseapp.com",
-  projectId: "assessment-launcher439",
-  storageBucket: "assessment-launcher439.firebasestorage.app",
-  messagingSenderId: "654911094206",
-  appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-
-/* ---------- LOGIN ---------- */
-
-window.login = async function(){
-
-const username = document.getElementById("loginUsername").value;
-const password = document.getElementById("loginPassword").value;
-
-
-signInWithEmailAndPassword(auth, email, password)
-  .then((userCredential) => {
-    window.location.href = "https://hrw2013.github.io/assessment-launcher/student-logged-in.html";
-  })
-  .catch((error) => {
-    alert(error.message);
-  });
-
-if(!userDoc.exists()){
-alert("User record missing");
-await signOut(auth);
-return;
-}
-
-
-await signOut(auth);
-
-return;
-
-}
+    try {
+      // 1. Attempt the sign in
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 2. If successful, redirect the user
+      console.log("Login successful!");
+      window.location.href = "https://hrw2013.github.io/assessment-launcher/student-logged-in.html";
+      
+    } catch (error) {
+      // 3. Handle errors (wrong password, user not found, etc.)
+      console.error("Login failed:", error.message);
+      alert("Login failed: " + error.message);
+    }
+  };
+</script>
 
 </script>
 
