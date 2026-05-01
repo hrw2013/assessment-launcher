@@ -1,3 +1,6 @@
+
+
+<!-- ===================== student.html ===================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,26 +18,40 @@ button { padding: 10px; margin-top: 10px; }
 <div id="dashboard"></div>
 
 <script>
-const tests = JSON.parse(localStorage.getItem('tests') || '[]');
-const assigned = JSON.parse(localStorage.getItem('assignedTests') || '[]');
-
+const params = new URLSearchParams(window.location.search);
+const encoded = params.get('test');
 const dash = document.getElementById('dashboard');
 
-assigned.forEach(index => {
-  const test = tests[index];
-  if (!test) return;
+let completed = JSON.parse(localStorage.getItem('completedTests') || '[]');
+
+if (encoded) {
+  const test = JSON.parse(atob(encoded));
+
+  const alreadyDone = completed.find(t => t.name === test.name);
 
   const div = document.createElement('div');
   div.className = 'card';
-  div.innerHTML = `
-    <strong>${test.name}</strong><br>
-    <button onclick="openTest(${index})">Start Test</button>
-  `;
-  dash.appendChild(div);
-});
 
-function openTest(index) {
-  const test = tests[index];
+  if (alreadyDone) {
+    div.innerHTML = `
+      <strong>${test.name}</strong><br>
+      Completed<br>
+      Score: ${alreadyDone.score}/${alreadyDone.total}<br>
+      Percentage: ${alreadyDone.percent}%
+    `;
+  } else {
+    div.innerHTML = `
+      <strong>${test.name}</strong><br>
+      <button onclick="openTest()">Start Test</button>
+    `;
+  }
+
+  dash.appendChild(div);
+  window.currentTest = test;
+}
+
+function openTest() {
+  const test = window.currentTest;
   const tab = window.open();
 
   tab.document.write(`
@@ -67,14 +84,27 @@ function openTest(index) {
       <script>
         function submitTest() {
           let score = 0;
-          const questions = ${JSON.stringify(tests)}[${index}].questions;
+          const test = ${JSON.stringify({})};
+          const realTest = window.opener.currentTest;
 
-          questions.forEach((q, i) => {
-            const selected = document.querySelector(\`input[name=q\${i}]:checked\`);
+          realTest.questions.forEach((q, i) => {
+            const selected = document.querySelector(`input[name=q${i}]:checked`);
             if (selected && selected.value === q.correct) score++;
           });
 
-          alert('Score: ' + score + '/' + questions.length);
+          const total = realTest.questions.length;
+          const percent = Math.round((score / total) * 100);
+
+          let completed = JSON.parse(localStorage.getItem('completedTests') || '[]');
+          completed.push({ name: realTest.name, score, total, percent });
+          localStorage.setItem('completedTests', JSON.stringify(completed));
+
+          let scores = JSON.parse(localStorage.getItem('scores') || '[]');
+          scores.push({ testName: realTest.name, score, total, percent });
+          localStorage.setItem('scores', JSON.stringify(scores));
+
+          alert('Score: ' + score + '/' + total + ' (' + percent + '%)');
+          window.close();
         }
       <\/script>
     </body>
