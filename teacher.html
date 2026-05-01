@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Teacher Login </title>
+
+<style>
+body { font-family: Arial; text-align:center; padding-top:50px; }
+input { padding:10px; margin:5px; width:250px; }
+button { padding:10px 20px; margin:5px; }
+</style>
+
+</head>
+
+<body>
+
+
+<h2>Login</h2>
+
+<input id="loginUsername" placeholder="Username"><br>
+<input id="loginPassword" type="password" placeholder="Password"><br>
+
+<button onclick="login()">Login</button>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+    authDomain: "assessment-launcher439.firebaseapp.com",
+    projectId: "assessment-launcher439",
+    storageBucket: "assessment-launcher439.firebasestorage.app",
+    messagingSenderId: "654911094206",
+    appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window.login = async function() {
+    const email = document.getElementById("loginUsername").value;
+    const password = document.getElementById("loginPassword").value;
+
+   // 1. Attempt the sign in
+const userCredential = await signInWithEmailAndPassword(auth, email, password);
+const user = userCredential.user;
+
+// 2. Fetch the user's data from Firestore
+const userDocRef = doc(db, "users", user.uid); // Assumes your collection is named "users"
+const userDoc = await getDoc(userDocRef);
+
+if (userDoc.exists()) {
+    const userData = userDoc.data();
+    
+    if (userData.role === "teacher") {
+        // Correct role! Send to teacher dashboard
+        window.location.href = "teacher-logged-in.html";
+    } else {
+        // Wrong role (e.g., student trying to access teacher login)
+        alert("Access Denied: You do not have Teacher permissions.");
+        await signOut(auth); // Log them out immediately
+        window.location.href = "login.html";
+    }
+} else {
+    alert("No user record found in database.");
+    await signOut(auth);
+}</script>
+
+</script>
+
+</body>
+</html>
