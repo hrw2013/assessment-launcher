@@ -1,6 +1,6 @@
 <h3> Needs real credentials to sign in </h3>
 
-Student login
+<a href="https://hrw2013.github.io/assessment-launcher/student.html">Student login</a>
 
-Teacher login
+<a href="https://hrw2013.github.io/assessment-launcher/teacher.html">Teacher login</a>
 
