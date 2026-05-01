@@ -1,16 +1,14 @@
-<!-- ===================== teacher.html (Firebase version) ===================== -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Teacher Dashboard</title>
+<title>Teacher</title>
 <script type="module">
-// Firebase (MODULAR v10)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+  apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
   authDomain: "assessment-launcher439.firebaseapp.com",
   projectId: "assessment-launcher439",
   storageBucket: "assessment-launcher439.firebasestorage.app",
@@ -19,100 +17,67 @@ apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getFirestore(app);
 
-window.db = db;
-window.addDoc = addDoc;
-window.collection = collection;
-window.getDocs = getDocs;
-window.doc = doc;
-window.updateDoc = updateDoc;
-</script>
+window.login = async function () {
+  const email = emailBox.value;
+  const pass = passBox.value;
 
-<style>
-body { font-family: Arial; margin: 20px; }
-.card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-input, textarea { width: 100%; margin: 5px 0; }
-button { padding: 10px; margin: 5px; }
-</style>
-</head>
-<body>
-
-<h1>Teacher Dashboard</h1>
-
-<input id="testName" placeholder="Test Name">
-<div id="questions"></div>
-<button onclick="addQ()">Add Question</button>
-<button onclick="createTest()">Create & Save Test</button>
-
-<h2>Tests</h2>
-<div id="list"></div>
-
-<script type="module">
-let questions = [];
-
-window.addQ = function() {
-  const div = document.createElement('div');
-  div.className = 'card';
-  div.innerHTML = `
-    <input placeholder="Question">
-    <input placeholder="A">
-    <input placeholder="B">
-    <input placeholder="C">
-    <input placeholder="D">
-    <input placeholder="Correct (A/B/C/D)">
-  `;
-  document.getElementById('questions').appendChild(div);
-}
-
-window.createTest = async function() {
-  const name = document.getElementById('testName').value;
-  const qDivs = document.querySelectorAll('#questions .card');
-
-  let qs = [];
-  qDivs.forEach(d => {
-    const i = d.querySelectorAll('input');
-    qs.push({
-      q:i[0].value,a:i[1].value,b:i[2].value,c:i[3].value,d:i[4].value,correct:i[5].value
-    });
-  });
-
-  const ref = await addDoc(collection(db,"tests"),{
-    name,
-    questions: qs,
-    assigned: false,
-    created: Date.now()
-  });
-
-  alert("Test created!");
+  await signInWithEmailAndPassword(auth, email, pass);
   loadTests();
-}
+};
 
-async function loadTests(){
-  const snap = await getDocs(collection(db,"tests"));
-  const list = document.getElementById('list');
+window.createTest = async function () {
+  const name = testName.value;
+
+  await addDoc(collection(db, "tests"), {
+    name,
+    assigned: false,
+    questions: []
+  });
+
+  loadTests();
+};
+
+async function loadTests() {
+  const snap = await getDocs(collection(db, "tests"));
   list.innerHTML = "";
 
   snap.forEach(d => {
-    const data = d.data();
+    const t = d.data();
 
-    const div = document.createElement('div');
-    div.className='card';
-    div.innerHTML = `
-      <b>${data.name}</b><br>
-      <button onclick="assign('${d.id}')">Assign</button>
+    list.innerHTML += `
+      <div>
+        <b>${t.name}</b>
+        <button onclick="assign('${d.id}')">Assign</button>
+      </div>
     `;
-    list.appendChild(div);
   });
 }
 
-window.assign = async function(id){
-  await updateDoc(doc(db,"tests",id),{assigned:true});
-  alert("Assigned!");
-}
-
-loadTests();
+window.assign = async function (id) {
+  await updateDoc(doc(db, "tests", id), {
+    assigned: true
+  });
+  loadTests();
+};
 </script>
+</head>
+
+<body>
+<h1>Teacher Login</h1>
+
+<input id="emailBox" placeholder="email">
+<input id="passBox" type="password" placeholder="password">
+<button onclick="login()">Login</button>
+
+<h2>Create Test</h2>
+<input id="testName" placeholder="test name">
+<button onclick="createTest()">Create</button>
+
+<h2>Tests</h2>
+<div id="list"></div>
 
 </body>
 </html>
