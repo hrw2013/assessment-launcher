@@ -20,13 +20,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-window.login = async function () {
-  const email = emailBox.value;
-  const pass = passBox.value;
-
-  await signInWithEmailAndPassword(auth, email, pass);
-  loadTests();
-};
 
 window.createTest = async function () {
   const name = testName.value;
@@ -66,11 +59,7 @@ window.assign = async function (id) {
 </head>
 
 <body>
-<h1>Teacher Login</h1>
 
-<input id="emailBox" placeholder="email">
-<input id="passBox" type="password" placeholder="password">
-<button onclick="login()">Login</button>
 
 <h2>Create Test</h2>
 <input id="testName" placeholder="test name">
