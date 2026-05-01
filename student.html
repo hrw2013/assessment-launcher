@@ -1,136 +1,145 @@
 
 
-<!-- ===================== student.html ===================== -->
+<!-- ===================== student.html (Firebase login + dashboard) ===================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Student Dashboard</title>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+const firebaseConfig = {
+ apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+  authDomain: "assessment-launcher439.firebaseapp.com",
+  projectId: "assessment-launcher439",
+  storageBucket: "assessment-launcher439.firebasestorage.app",
+  messagingSenderId: "654911094206",
+  appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+window.db=db;
+window.getDocs=getDocs;
+window.collection=collection;
+window.addDoc=addDoc;
+window.auth=auth;
+window.signInWithEmailAndPassword=signInWithEmailAndPassword;
+</script>
+
 <style>
 body { font-family: Arial; padding: 20px; }
-.card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-button { padding: 10px; margin-top: 10px; }
+.card { border:1px solid #ccc; padding:10px; margin:10px; }
+button{padding:10px;}
+input{margin:5px;}
 </style>
 </head>
 <body>
 
-<h1>Student Dashboard</h1>
-<div id="dashboard"></div>
+<h1>Student Login</h1>
+<input id="email" placeholder="Email">
+<input id="pass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
 
-<script>
-const params = new URLSearchParams(window.location.search);
-const encoded = params.get('test');
+<h2>Dashboard</h2>
+<div id="dash"></div>
 
-let assigned = JSON.parse(localStorage.getItem('assignedTests') || '[]');
-let completed = JSON.parse(localStorage.getItem('completedTests') || '[]');
+<script type="module">
+let currentUser;
 
-function saveAssigned(testObj) {
-  const exists = assigned.find(t => t.id === testObj.id);
-  if (!exists) {
-    assigned.push(testObj);
-    localStorage.setItem('assignedTests', JSON.stringify(assigned));
-  }
+window.login = async function(){
+  const e=document.getElementById('email').value;
+  const p=document.getElementById('pass').value;
+  const res = await signInWithEmailAndPassword(auth,e,p);
+  currentUser = res.user;
+  loadTests();
 }
 
-function renderDashboard() {
-  const dash = document.getElementById('dashboard');
-  dash.innerHTML = '';
+async function loadTests(){
+  const snap = await getDocs(collection(db,"tests"));
+  const dash=document.getElementById('dash');
+  dash.innerHTML="";
 
-  assigned.forEach(testObj => {
-    const done = completed.find(c => c.id === testObj.id);
+  snap.forEach(d=>{
+    const t=d.data();
+    if(!t.assigned) return;
 
-    const div = document.createElement('div');
-    div.className = 'card';
-
-    if (done) {
-      div.innerHTML = `
-        <strong>${testObj.test.name}</strong><br>
-        Completed<br>
-        Score: ${done.score}/${done.total}<br>
-        Percentage: ${done.percent}%
-      `;
-    } else {
-      div.innerHTML = `
-        <strong>${testObj.test.name}</strong><br>
-        <button onclick="openTest('${testObj.id}')">Start Test</button>
-      `;
-    }
-
+    const div=document.createElement('div');
+    div.className='card';
+    div.innerHTML=`
+      <b>${t.name}</b><br>
+      <button onclick='takeTest("${d.id}")'>Take Test</button>
+    `;
     dash.appendChild(div);
   });
 }
 
-let currentTest = null;
+window.takeTest = async function(id){
+  const snap = await getDocs(collection(db,"tests"));
+  let test;
 
-function openTest(id) {
-  const testObj = assigned.find(t => t.id === id);
-  currentTest = testObj;
+  snap.forEach(d=>{
+    if(d.id===id) test=d.data();
+  });
 
-  const tab = window.open();
+  const win=window.open();
 
-  tab.document.write(`
-    <html>
-    <head>
-      <title>${testObj.test.name}</title>
-      <style>body{font-family:Arial;padding:20px;}</style>
-    </head>
-    <body>
-      <h2>${testObj.test.name}</h2>
-      <form id="form">
-        ${testObj.test.questions.map((q,i)=>`
-          <div>
-            <p>${i+1}. ${q.q}</p>
-            ${['A','B','C','D'].map(l=>`
-              <label><input type='radio' name='q${i}' value='${l}'> ${q[l.toLowerCase()]}</label><br>
-            `).join('')}
-          </div>
-        `).join('')}
-      </form>
+  win.document.write(`
+    <html><body style='font-family:Arial;padding:20px'>
+    <h2>${test.name}</h2>
+    <form id='f'>
+      ${test.questions.map((q,i)=>`
+        <div>
+          <p>${i+1}. ${q.q}</p>
+          ${['A','B','C','D'].map(l=>`
+            <label><input type='radio' name='q${i}' value='${l}'> ${q[l.toLowerCase()]}</label><br>
+          `).join('')}
+        </div>
+      `).join('')}
+    </form>
+    <button onclick='submit()'>Submit</button>
+    <button onclick='window.close()'>Close</button>
 
-      <button onclick="submitTest()">Submit</button>
-      <button onclick="window.close()">Close Tab</button>
+    <script>
+      function submit(){
+        let score=0;
+        const test=${JSON.stringify(test)};
 
-      <script>
-        function submitTest(){
-          let score=0;
-          const test=${JSON.stringify(testObj.test)};
+        test.questions.forEach((q,i)=>{
+          const sel=document.querySelector('input[name=q'+i+']:checked');
+          if(sel && sel.value===q.correct) score++;
+        });
 
-          test.questions.forEach((q,i)=>{
-            const sel=document.querySelector('input[name=q'+i+']:checked');
-            if(sel && sel.value===q.correct) score++;
-          });
+        const percent=Math.round((score/test.questions.length)*100);
 
-          const total=test.questions.length;
-          const percent=Math.round((score/total)*100);
+        window.opener.saveScore(test.name,score,test.questions.length,percent);
 
-          let completed=JSON.parse(localStorage.getItem('completedTests')||'[]');
-          completed.push({id:'${id}',score,total,percent});
-          localStorage.setItem('completedTests',JSON.stringify(completed));
-
-          let scores=JSON.parse(localStorage.getItem('scores')||'[]');
-          scores.push({testName:test.name,score,total,percent});
-          localStorage.setItem('scores',JSON.stringify(scores));
-
-          alert(score+'/'+total+' ('+percent+'%)');
-          window.close();
-        }
-      <\/script>
-    </body>
-    </html>
+        alert(score+'/'+test.questions.length+' '+percent+'%');
+        window.close();
+      }
+    <\/script>
+    </body></html>
   `);
 
-  tab.document.close();
+  win.document.close();
 }
 
-// AUTO LOAD FROM LINK
-if (encoded) {
-  const test = JSON.parse(atob(encoded));
-  const id = encoded;
-
-  saveAssigned({ id, test });
+window.saveScore = async function(name,score,total,percent){
+  await addDoc(collection(db,"scores"),{
+    user: currentUser.email,
+    name,
+    score,
+    total,
+    percent,
+    time: Date.now()
+  });
 }
 
-renderDashboard();
 </script>
 
 </body>
