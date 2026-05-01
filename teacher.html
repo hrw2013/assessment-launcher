@@ -1,3 +1,4 @@
+<!-- ===================== teacher.html ===================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +9,7 @@ body { font-family: Arial; margin: 20px; }
 button { padding: 10px; margin: 5px; }
 input { width: 100%; margin: 5px 0; }
 .card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+textarea { width: 100%; height: 80px; }
 </style>
 </head>
 <body>
@@ -17,14 +19,12 @@ input { width: 100%; margin: 5px 0; }
 <input id="testName" placeholder="Test Name">
 <div id="questions"></div>
 <button onclick="addQuestion()">Add Question</button>
-<button onclick="saveTest()">Save Test</button>
+<button onclick="generateLink()">Generate Share Link</button>
 
-<h2>Saved Tests</h2>
-<div id="testList"></div>
+<h2>Share Link</h2>
+<textarea id="linkBox" readonly placeholder="Your link will appear here..."></textarea>
 
 <script>
-let tests = JSON.parse(localStorage.getItem('tests') || '[]');
-
 function addQuestion() {
   const div = document.createElement('div');
   div.className = 'card';
@@ -39,7 +39,7 @@ function addQuestion() {
   document.getElementById('questions').appendChild(div);
 }
 
-function saveTest() {
+function generateLink() {
   const name = document.getElementById('testName').value;
   const qDivs = document.querySelectorAll('#questions .card');
   const questions = [];
@@ -56,39 +56,99 @@ function saveTest() {
     });
   });
 
-  tests.push({ name, questions });
-  localStorage.setItem('tests', JSON.stringify(tests));
-  renderTests();
+  const test = { name, questions };
+  const encoded = btoa(JSON.stringify(test));
+
+  const url = window.location.origin + window.location.pathname.replace('teacher.html','student.html') + '?test=' + encoded;
+
+  document.getElementById('linkBox').value = url;
+}
+</script>
+
+</body>
+</html>
+
+
+<!-- ===================== student.html ===================== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Student Dashboard</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+.card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+button { padding: 10px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Student Dashboard</h1>
+<div id="dashboard"></div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const encoded = params.get('test');
+
+const dash = document.getElementById('dashboard');
+
+if (encoded) {
+  const test = JSON.parse(atob(encoded));
+
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <strong>${test.name}</strong><br>
+    <button onclick="openTest()">Start Test</button>
+  `;
+  dash.appendChild(div);
+
+  window.currentTest = test;
 }
 
-function renderTests() {
-  const list = document.getElementById('testList');
-  list.innerHTML = '';
+function openTest() {
+  const test = window.currentTest;
+  const tab = window.open();
 
-  tests.forEach((test, index) => {
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.innerHTML = `
-      <strong>${test.name}</strong><br>
-      <button onclick="assignTest(${index})">Assign to Students</button>
-    `;
-    list.appendChild(div);
-  });
+  tab.document.write(`
+    <html>
+    <head>
+      <title>${test.name}</title>
+      <style>
+        body { font-family: Arial; padding: 20px; }
+      </style>
+    </head>
+    <body>
+      <h2>${test.name}</h2>
+      <form id="form">
+        ${test.questions.map((q, i) => `
+          <div>
+            <p>${i+1}. ${q.q}</p>
+            ${['A','B','C','D'].map(letter => `
+              <label>
+                <input type="radio" name="q${i}" value="${letter}">
+                ${q[letter.toLowerCase()]}
+              </label><br>
+            `).join('')}
+          </div>
+        `).join('')}
+      </form>
+
+      <button onclick="submitTest()">Submit</button>
+      <button onclick="window.close()">Close Tab</button>
+
+      <script>
+        function submitTest() {
+          let score = 0;
+          const questions = ${JSON.stringify({})};
+        }
+      <\/script>
+    </body>
+    </html>
+  `);
+
+  tab.document.close();
 }
-
-function assignTest(index) {
-  let assigned = JSON.parse(localStorage.getItem('assignedTests') || '[]');
-
-  if (!assigned.includes(index)) {
-    assigned.push(index);
-    localStorage.setItem('assignedTests', JSON.stringify(assigned));
-    alert('Assigned!');
-  } else {
-    alert('Already assigned');
-  }
-}
-
-renderTests();
 </script>
 
 </body>
