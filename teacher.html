@@ -62,7 +62,7 @@ if (userDoc.exists()) {
         // Wrong role (e.g., student trying to access teacher login)
         alert("Access Denied: You do not have Teacher permissions.");
         await signOut(auth); // Log them out immediately
-        window.location.href = "login.html";
+        window.location.href = "teacher.html";
     }
 } else {
     alert("No user record found in database.");
