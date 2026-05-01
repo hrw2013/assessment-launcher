@@ -1,0 +1,89 @@
+<!-- ===================== teacher.html ===================== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher - Test Creator</title>
+<style>
+body { font-family: Arial; margin: 20px; }
+button { padding: 10px; margin: 5px; }
+input { width: 100%; margin: 5px 0; }
+.card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<h1>Teacher Dashboard</h1>
+<input id="testName" placeholder="Test Name">
+<div id="questions"></div>
+<button onclick="addQuestion()">Add Question</button>
+<button onclick="saveTest()">Save Test</button>
+
+<h2>Saved Tests</h2>
+<div id="testList"></div>
+
+<script>
+let tests = JSON.parse(localStorage.getItem('tests') || '[]');
+
+function addQuestion() {
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <input placeholder="Question">
+    <input placeholder="Option A">
+    <input placeholder="Option B">
+    <input placeholder="Option C">
+    <input placeholder="Option D">
+    <input placeholder="Correct Answer (A/B/C/D)">
+  `;
+  document.getElementById('questions').appendChild(div);
+}
+
+function saveTest() {
+  const name = document.getElementById('testName').value;
+  const qDivs = document.querySelectorAll('#questions .card');
+  const questions = [];
+
+  qDivs.forEach(div => {
+    const inputs = div.querySelectorAll('input');
+    questions.push({
+      q: inputs[0].value,
+      a: inputs[1].value,
+      b: inputs[2].value,
+      c: inputs[3].value,
+      d: inputs[4].value,
+      correct: inputs[5].value.toUpperCase()
+    });
+  });
+
+  tests.push({ name, questions });
+  localStorage.setItem('tests', JSON.stringify(tests));
+  renderTests();
+}
+
+function renderTests() {
+  const list = document.getElementById('testList');
+  list.innerHTML = '';
+
+  tests.forEach((test, index) => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <strong>${test.name}</strong><br>
+      <button onclick="openStudent(${index})">Open Student Version</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function openStudent(index) {
+  window.open('student.html?test=' + index);
+}
+
+renderTests();
+</script>
+
+</body>
+</html>
+
