@@ -20,59 +20,68 @@ button { padding: 10px; margin-top: 10px; }
 <script>
 const params = new URLSearchParams(window.location.search);
 const encoded = params.get('test');
-const dash = document.getElementById('dashboard');
 
+let assigned = JSON.parse(localStorage.getItem('assignedTests') || '[]');
 let completed = JSON.parse(localStorage.getItem('completedTests') || '[]');
 
-if (encoded) {
-  const test = JSON.parse(atob(encoded));
-
-  const alreadyDone = completed.find(t => t.name === test.name);
-
-  const div = document.createElement('div');
-  div.className = 'card';
-
-  if (alreadyDone) {
-    div.innerHTML = `
-      <strong>${test.name}</strong><br>
-      Completed<br>
-      Score: ${alreadyDone.score}/${alreadyDone.total}<br>
-      Percentage: ${alreadyDone.percent}%
-    `;
-  } else {
-    div.innerHTML = `
-      <strong>${test.name}</strong><br>
-      <button onclick="openTest()">Start Test</button>
-    `;
+function saveAssigned(testObj) {
+  const exists = assigned.find(t => t.id === testObj.id);
+  if (!exists) {
+    assigned.push(testObj);
+    localStorage.setItem('assignedTests', JSON.stringify(assigned));
   }
-
-  dash.appendChild(div);
-  window.currentTest = test;
 }
 
-function openTest() {
-  const test = window.currentTest;
+function renderDashboard() {
+  const dash = document.getElementById('dashboard');
+  dash.innerHTML = '';
+
+  assigned.forEach(testObj => {
+    const done = completed.find(c => c.id === testObj.id);
+
+    const div = document.createElement('div');
+    div.className = 'card';
+
+    if (done) {
+      div.innerHTML = `
+        <strong>${testObj.test.name}</strong><br>
+        Completed<br>
+        Score: ${done.score}/${done.total}<br>
+        Percentage: ${done.percent}%
+      `;
+    } else {
+      div.innerHTML = `
+        <strong>${testObj.test.name}</strong><br>
+        <button onclick="openTest('${testObj.id}')">Start Test</button>
+      `;
+    }
+
+    dash.appendChild(div);
+  });
+}
+
+let currentTest = null;
+
+function openTest(id) {
+  const testObj = assigned.find(t => t.id === id);
+  currentTest = testObj;
+
   const tab = window.open();
 
   tab.document.write(`
     <html>
     <head>
-      <title>${test.name}</title>
-      <style>
-        body { font-family: Arial; padding: 20px; }
-      </style>
+      <title>${testObj.test.name}</title>
+      <style>body{font-family:Arial;padding:20px;}</style>
     </head>
     <body>
-      <h2>${test.name}</h2>
+      <h2>${testObj.test.name}</h2>
       <form id="form">
-        ${test.questions.map((q, i) => `
+        ${testObj.test.questions.map((q,i)=>`
           <div>
             <p>${i+1}. ${q.q}</p>
-            ${['A','B','C','D'].map(letter => `
-              <label>
-                <input type="radio" name="q${i}" value="${letter}">
-                ${q[letter.toLowerCase()]}
-              </label><br>
+            ${['A','B','C','D'].map(l=>`
+              <label><input type='radio' name='q${i}' value='${l}'> ${q[l.toLowerCase()]}</label><br>
             `).join('')}
           </div>
         `).join('')}
@@ -82,28 +91,27 @@ function openTest() {
       <button onclick="window.close()">Close Tab</button>
 
       <script>
-        function submitTest() {
-          let score = 0;
-          const test = ${JSON.stringify({})};
-          const realTest = window.opener.currentTest;
+        function submitTest(){
+          let score=0;
+          const test=${JSON.stringify(testObj.test)};
 
-          realTest.questions.forEach((q, i) => {
-            const selected = document.querySelector(`input[name=q${i}]:checked`);
-            if (selected && selected.value === q.correct) score++;
+          test.questions.forEach((q,i)=>{
+            const sel=document.querySelector('input[name=q'+i+']:checked');
+            if(sel && sel.value===q.correct) score++;
           });
 
-          const total = realTest.questions.length;
-          const percent = Math.round((score / total) * 100);
+          const total=test.questions.length;
+          const percent=Math.round((score/total)*100);
 
-          let completed = JSON.parse(localStorage.getItem('completedTests') || '[]');
-          completed.push({ name: realTest.name, score, total, percent });
-          localStorage.setItem('completedTests', JSON.stringify(completed));
+          let completed=JSON.parse(localStorage.getItem('completedTests')||'[]');
+          completed.push({id:'${id}',score,total,percent});
+          localStorage.setItem('completedTests',JSON.stringify(completed));
 
-          let scores = JSON.parse(localStorage.getItem('scores') || '[]');
-          scores.push({ testName: realTest.name, score, total, percent });
-          localStorage.setItem('scores', JSON.stringify(scores));
+          let scores=JSON.parse(localStorage.getItem('scores')||'[]');
+          scores.push({testName:test.name,score,total,percent});
+          localStorage.setItem('scores',JSON.stringify(scores));
 
-          alert('Score: ' + score + '/' + total + ' (' + percent + '%)');
+          alert(score+'/'+total+' ('+percent+'%)');
           window.close();
         }
       <\/script>
@@ -113,6 +121,16 @@ function openTest() {
 
   tab.document.close();
 }
+
+// AUTO LOAD FROM LINK
+if (encoded) {
+  const test = JSON.parse(atob(encoded));
+  const id = encoded;
+
+  saveAssigned({ id, test });
+}
+
+renderDashboard();
 </script>
 
 </body>
