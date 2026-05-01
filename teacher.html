@@ -22,7 +22,10 @@ textarea { width: 100%; height: 80px; }
 <button onclick="generateLink()">Generate Share Link</button>
 
 <h2>Share Link</h2>
-<textarea id="linkBox" readonly placeholder="Your link will appear here..."></textarea>
+<textarea id="linkBox" readonly></textarea>
+
+<h2>Student Scores</h2>
+<div id="scores"></div>
 
 <script>
 function addQuestion() {
@@ -60,95 +63,27 @@ function generateLink() {
   const encoded = btoa(JSON.stringify(test));
 
   const url = window.location.origin + window.location.pathname.replace('teacher.html','student.html') + '?test=' + encoded;
-
   document.getElementById('linkBox').value = url;
 }
-</script>
 
-</body>
-</html>
+function renderScores() {
+  const scores = JSON.parse(localStorage.getItem('scores') || '[]');
+  const div = document.getElementById('scores');
+  div.innerHTML = '';
 
-
-<!-- ===================== student.html ===================== -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Student Dashboard</title>
-<style>
-body { font-family: Arial; padding: 20px; }
-.card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-button { padding: 10px; margin-top: 10px; }
-</style>
-</head>
-<body>
-
-<h1>Student Dashboard</h1>
-<div id="dashboard"></div>
-
-<script>
-const params = new URLSearchParams(window.location.search);
-const encoded = params.get('test');
-
-const dash = document.getElementById('dashboard');
-
-if (encoded) {
-  const test = JSON.parse(atob(encoded));
-
-  const div = document.createElement('div');
-  div.className = 'card';
-  div.innerHTML = `
-    <strong>${test.name}</strong><br>
-    <button onclick="openTest()">Start Test</button>
-  `;
-  dash.appendChild(div);
-
-  window.currentTest = test;
+  scores.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <strong>${s.testName}</strong><br>
+      Score: ${s.score}/${s.total}<br>
+      Percentage: ${s.percent}%
+    `;
+    div.appendChild(el);
+  });
 }
 
-function openTest() {
-  const test = window.currentTest;
-  const tab = window.open();
-
-  tab.document.write(`
-    <html>
-    <head>
-      <title>${test.name}</title>
-      <style>
-        body { font-family: Arial; padding: 20px; }
-      </style>
-    </head>
-    <body>
-      <h2>${test.name}</h2>
-      <form id="form">
-        ${test.questions.map((q, i) => `
-          <div>
-            <p>${i+1}. ${q.q}</p>
-            ${['A','B','C','D'].map(letter => `
-              <label>
-                <input type="radio" name="q${i}" value="${letter}">
-                ${q[letter.toLowerCase()]}
-              </label><br>
-            `).join('')}
-          </div>
-        `).join('')}
-      </form>
-
-      <button onclick="submitTest()">Submit</button>
-      <button onclick="window.close()">Close Tab</button>
-
-      <script>
-        function submitTest() {
-          let score = 0;
-          const questions = ${JSON.stringify({})};
-        }
-      <\/script>
-    </body>
-    </html>
-  `);
-
-  tab.document.close();
-}
+renderScores();
 </script>
 
 </body>
