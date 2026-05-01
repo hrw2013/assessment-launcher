@@ -1,15 +1,47 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-<title>Student</title>
+<title>Student Login </title>
+
+<style>
+body { font-family: Arial; text-align:center; padding-top:50px; }
+input { padding:10px; margin:5px; width:250px; }
+button { padding:10px 20px; margin:5px; }
+</style>
+
+</head>
+
+<body>
+
+
+<h2>Login</h2>
+
+<input id="loginUsername" placeholder="Username"><br>
+<input id="loginPassword" type="password" placeholder="Password"><br>
+
+<button onclick="login()">Login</button>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+import {
+getAuth,
+createUserWithEmailAndPassword,
+signInWithEmailAndPassword,
+signOut
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+import {
+getFirestore,
+doc,
+setDoc,
+getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
   authDomain: "assessment-launcher439.firebaseapp.com",
   projectId: "assessment-launcher439",
   storageBucket: "assessment-launcher439.firebasestorage.app",
@@ -21,45 +53,37 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-window.login = async function () {
-  await signInWithEmailAndPassword(auth, email.value, pass.value);
-  loadTests();
-};
 
-window.loadTests = async function () {
-  const snap = await getDocs(collection(db, "tests"));
-  dash.innerHTML = "";
+/* ---------- LOGIN ---------- */
 
-  snap.forEach(d => {
-    const t = d.data();
-    if (!t.assigned) return;
+window.login = async function(){
 
-    dash.innerHTML += `
-      <div>
-        <b>${t.name}</b>
-        <button onclick="takeTest('${d.id}')">Take</button>
-      </div>
-    `;
-  });
-};
+const username = document.getElementById("loginUsername").value;
+const password = document.getElementById("loginPassword").value;
 
-window.takeTest = function (id) {
-  window.open("about:blank").document.write("Test would load here (next upgrade)");
-};
+
+try{
+
+await signInWithEmailAndPassword(auth,Email,password);
+
+const userDoc = await getDoc(doc(db,"users",username));
+
+if(!userDoc.exists()){
+alert("User record missing");
+await signOut(auth);
+return;
+}
+
+
+await signOut(auth);
+
+return;
+
+}
+
 </script>
-
-</head>
-
-<body>
-
-<h1>Student Login</h1>
-
-<input id="email" placeholder="email">
-<input id="pass" type="password" placeholder="password">
-<button onclick="login()">Login</button>
-
-<h2>Dashboard</h2>
-<div id="dash"></div>
 
 </body>
 </html>
+
+
