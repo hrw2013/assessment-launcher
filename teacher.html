@@ -1,15 +1,39 @@
-<!-- ===================== teacher.html ===================== -->
+<!-- ===================== teacher.html (Firebase version) ===================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Teacher Dashboard</title>
+<script type="module">
+// Firebase (MODULAR v10)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+  authDomain: "assessment-launcher439.firebaseapp.com",
+  projectId: "assessment-launcher439",
+  storageBucket: "assessment-launcher439.firebasestorage.app",
+  messagingSenderId: "654911094206",
+  appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.db = db;
+window.addDoc = addDoc;
+window.collection = collection;
+window.getDocs = getDocs;
+window.doc = doc;
+window.updateDoc = updateDoc;
+</script>
+
 <style>
 body { font-family: Arial; margin: 20px; }
-button { padding: 10px; margin: 5px; }
-input { width: 100%; margin: 5px 0; }
 .card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-textarea { width: 100%; height: 80px; }
+input, textarea { width: 100%; margin: 5px 0; }
+button { padding: 10px; margin: 5px; }
 </style>
 </head>
 <body>
@@ -18,76 +42,77 @@ textarea { width: 100%; height: 80px; }
 
 <input id="testName" placeholder="Test Name">
 <div id="questions"></div>
-<button onclick="addQuestion()">Add Question</button>
-<button onclick="generateLink()">Generate Share Link</button>
+<button onclick="addQ()">Add Question</button>
+<button onclick="createTest()">Create & Save Test</button>
 
-<h2>Share Link</h2>
-<textarea id="linkBox" readonly></textarea>
+<h2>Tests</h2>
+<div id="list"></div>
 
-<h2>Student Scores</h2>
-<div id="scores"></div>
+<script type="module">
+let questions = [];
 
-<script>
-function addQuestion() {
+window.addQ = function() {
   const div = document.createElement('div');
   div.className = 'card';
   div.innerHTML = `
     <input placeholder="Question">
-    <input placeholder="Option A">
-    <input placeholder="Option B">
-    <input placeholder="Option C">
-    <input placeholder="Option D">
-    <input placeholder="Correct Answer (A/B/C/D)">
+    <input placeholder="A">
+    <input placeholder="B">
+    <input placeholder="C">
+    <input placeholder="D">
+    <input placeholder="Correct (A/B/C/D)">
   `;
   document.getElementById('questions').appendChild(div);
 }
 
-function generateLink() {
+window.createTest = async function() {
   const name = document.getElementById('testName').value;
   const qDivs = document.querySelectorAll('#questions .card');
-  const questions = [];
 
-  qDivs.forEach(div => {
-    const inputs = div.querySelectorAll('input');
-    questions.push({
-      q: inputs[0].value,
-      a: inputs[1].value,
-      b: inputs[2].value,
-      c: inputs[3].value,
-      d: inputs[4].value,
-      correct: inputs[5].value.toUpperCase()
+  let qs = [];
+  qDivs.forEach(d => {
+    const i = d.querySelectorAll('input');
+    qs.push({
+      q:i[0].value,a:i[1].value,b:i[2].value,c:i[3].value,d:i[4].value,correct:i[5].value
     });
   });
 
-  const test = { name, questions };
-  const encoded = btoa(JSON.stringify(test));
+  const ref = await addDoc(collection(db,"tests"),{
+    name,
+    questions: qs,
+    assigned: false,
+    created: Date.now()
+  });
 
-  const base = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-  const url = base + "student.html?test=" + encoded;
-
-  document.getElementById('linkBox').value = url;
+  alert("Test created!");
+  loadTests();
 }
 
-function renderScores() {
-  const scores = JSON.parse(localStorage.getItem('scores') || '[]');
-  const div = document.getElementById('scores');
-  div.innerHTML = '';
+async function loadTests(){
+  const snap = await getDocs(collection(db,"tests"));
+  const list = document.getElementById('list');
+  list.innerHTML = "";
 
-  scores.forEach(s => {
-    const el = document.createElement('div');
-    el.className = 'card';
-    el.innerHTML = `
-      <strong>${s.testName}</strong><br>
-      Score: ${s.score}/${s.total}<br>
-      Percentage: ${s.percent}%
+  snap.forEach(d => {
+    const data = d.data();
+
+    const div = document.createElement('div');
+    div.className='card';
+    div.innerHTML = `
+      <b>${data.name}</b><br>
+      <button onclick="assign('${d.id}')">Assign</button>
     `;
-    div.appendChild(el);
+    list.appendChild(div);
   });
 }
 
-renderScores();
+window.assign = async function(id){
+  await updateDoc(doc(db,"tests",id),{assigned:true});
+  alert("Assigned!");
+}
+
+loadTests();
 </script>
 
 </body>
 </html>
-
