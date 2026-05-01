@@ -1,10 +1,8 @@
-<!-- ===================== teacher.html ===================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Teacher - Test Creator</title>
+<title>Teacher Dashboard</title>
 <style>
 body { font-family: Arial; margin: 20px; }
 button { padding: 10px; margin: 5px; }
@@ -15,6 +13,7 @@ input { width: 100%; margin: 5px 0; }
 <body>
 
 <h1>Teacher Dashboard</h1>
+
 <input id="testName" placeholder="Test Name">
 <div id="questions"></div>
 <button onclick="addQuestion()">Add Question</button>
@@ -71,14 +70,22 @@ function renderTests() {
     div.className = 'card';
     div.innerHTML = `
       <strong>${test.name}</strong><br>
-      <button onclick="openStudent(${index})">Open Student Version</button>
+      <button onclick="assignTest(${index})">Assign to Students</button>
     `;
     list.appendChild(div);
   });
 }
 
-function openStudent(index) {
-  window.open('student.html?test=' + index);
+function assignTest(index) {
+  let assigned = JSON.parse(localStorage.getItem('assignedTests') || '[]');
+
+  if (!assigned.includes(index)) {
+    assigned.push(index);
+    localStorage.setItem('assignedTests', JSON.stringify(assigned));
+    alert('Assigned!');
+  } else {
+    alert('Already assigned');
+  }
 }
 
 renderTests();
@@ -86,4 +93,3 @@ renderTests();
 
 </body>
 </html>
-
