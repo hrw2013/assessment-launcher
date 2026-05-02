@@ -23,19 +23,14 @@
 
     <h1>Teacher Dashboard</h1>
 
-    <!-- CREATE CLASS (simple version) -->
-    <div class="section">
-        <h2>Create Class</h2>
-        <input id="className" placeholder="Class Name (e.g. Biology Period 2)">
-        <button class="btn-add" onclick="createClass()">Create Class</button>
-    </div>
-
+   
     <!-- CREATE TEST -->
     <div class="section">
         <h2>Create Assessment</h2>
 
         <input id="testName" placeholder="Test Name">
-
+<br> 
+    
         <!-- CLASS SELECT -->
         <select id="classSelect">
             <option value="">Select Class</option>
@@ -54,6 +49,13 @@
     </div>
 
 </div>
+
+     <!-- CREATE CLASS (simple version) -->
+    <div class="section">
+        <h2>Create Class</h2>
+        <input id="className" placeholder="Class Name (e.g. Biology Period 2)">
+        <button class="btn-add" onclick="createClass()">Create Class</button>
+    </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
