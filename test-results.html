@@ -26,75 +26,111 @@
                 <th>Date Completed</th>
             </tr>
         </thead>
-        <tbody id="resultsBody">
-            </tbody>
+        <tbody id="resultsBody"></tbody>
     </table>
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { 
+    getFirestore, 
+    collection, 
+    getDocs, 
+    query, 
+    where, 
+    doc, 
+    getDoc 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-        authDomain: "assessment-launcher439.firebaseapp.com",
-        projectId: "assessment-launcher439",
-        storageBucket: "assessment-launcher439.firebasestorage.app",
-        messagingSenderId: "654911094206",
-        appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-    };
+const firebaseConfig = {
+    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+    authDomain: "assessment-launcher439.firebaseapp.com",
+    projectId: "assessment-launcher439",
+    storageBucket: "assessment-launcher439.firebasestorage.app",
+    messagingSenderId: "654911094206",
+    appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    // ... (Your Firebase Imports and Config) ...
+// Get test ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+const testId = urlParams.get('id');
 
-    // 1. Get the ID from the URL (?id=xxxxxx)
-    const urlParams = new URLSearchParams(window.location.search);
-    const testId = urlParams.get('id');
-
-    async function fetchResults() {
-    const body = document.getElementById('resultsBody');
-    const header = document.getElementById('headerTitle');
-    
-    console.log("Checking for results associated with ID:", testId);
+// 🔒 AUTH + ROLE CHECK
+onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        alert("Not logged in.");
+        window.location.href = "teacher.html";
+        return;
+    }
 
     try {
-        // Step 1: Query the database
-        const q = query(collection(db, "results"), where("testId", "==", testId));
-        const snap = await getDocs(q);
-        
-        console.log("Database responded. Documents found:", snap.size);
+        // Check role in Firestore
+        const userRef = doc(db, "users", user.uid);
+        const snap = await getDoc(userRef);
 
-        // Step 2: Check if empty
-        if (snap.empty) {
-            body.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">
-                No results found for this Test ID in the database.<br>
-                <small>(Search ID: ${testId})</small>
-            </td></tr>`;
+        if (!snap.exists() || snap.data().role !== "teacher") {
+            alert("Access denied.");
+            window.location.href = "student.html";
             return;
         }
 
-        // Step 3: Clear the "Loading" text
+        // Only run query AFTER verification
+        if (testId) {
+            fetchResults();
+        } else {
+            alert("No Test ID provided.");
+            window.location.href = 'teacher-logged-in.html';
+        }
+
+    } catch (error) {
+        console.error("Auth/Role error:", error);
+        alert("Permission error: " + error.message);
+    }
+});
+
+// 📊 FETCH RESULTS
+async function fetchResults() {
+    const body = document.getElementById('resultsBody');
+    const header = document.getElementById('headerTitle');
+
+    try {
+        const q = query(collection(db, "results"), where("testId", "==", testId));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            body.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align:center; padding:20px;">
+                        No results found.<br>
+                        <small>(Test ID: ${testId})</small>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
         body.innerHTML = "";
 
-        // Step 4: Loop through and build the rows
-        snap.forEach((doc) => {
-            const data = doc.data();
-            console.log("Processing student row:", data.studentName);
+        snap.forEach((docSnap) => {
+            const data = docSnap.data();
 
-            // Create the date string safely
             let dateStr = "N/A";
             if (data.completedAt && data.completedAt.toDate) {
                 dateStr = data.completedAt.toDate().toLocaleDateString();
             }
 
-            // Update Header Name if we haven't yet
-            if (data.testName) header.innerText = "Results for: " + data.testName;
+            if (data.testName) {
+                header.innerText = "Results for: " + data.testName;
+            }
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${data.studentName || 'Unknown Student'}</td>
+                <td>${data.studentName || 'Unknown'}</td>
                 <td>${data.score} / ${data.total}</td>
                 <td>${data.percentage}%</td>
                 <td>${dateStr}</td>
@@ -102,20 +138,18 @@
             body.appendChild(row);
         });
 
-        console.log("Table successfully populated.");
-
     } catch (error) {
-        console.error("CRITICAL ERROR:", error);
-        body.innerHTML = `<tr><td colspan="4" style="color:red;">Error: ${error.message}</td></tr>`;
+        console.error("Fetch error:", error);
+        body.innerHTML = `
+            <tr>
+                <td colspan="4" style="color:red;">
+                    Error: ${error.message}
+                </td>
+            </tr>
+        `;
     }
-}        
-    if (testId) {
-        fetchResults();
-    } else {
-        alert("No Test ID provided.");
-        window.location.href = 'teacher-logged-in.html';
-    }
+}
 </script>
-</script>
+
 </body>
 </html>
