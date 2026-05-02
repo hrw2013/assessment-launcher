@@ -15,149 +15,198 @@
         .btn-results { background: #fbbc05; color: #333; }
         .btn-delete { background: #ea4335; color: white; padding: 5px 10px; font-size: 12px; }
     </style>
+
 </head>
 <body>
 
 <div class="container">
+
     <h1>Teacher Dashboard</h1>
 
+    <!-- CREATE CLASS (simple version) -->
     <div class="section">
-        <h2>Create New Assessment</h2>
-        <input id="testName" placeholder="Enter Test Name (e.g., Biology Quiz 1)">
-        <div id="questions"></div>
-        <button class="btn-add" onclick="addQuestion()">+ Add Question</button>
-        <button class="btn-save" onclick="saveTest()">Upload & Distribute Test</button>
+        <h2>Create Class</h2>
+        <input id="className" placeholder="Class Name (e.g. Biology Period 2)">
+        <button class="btn-add" onclick="createClass()">Create Class</button>
     </div>
 
+    <!-- CREATE TEST -->
     <div class="section">
-        <h2>Your Saved Assessments</h2>
-        <div id="testList">Loading tests...</div>
+        <h2>Create Assessment</h2>
+
+        <input id="testName" placeholder="Test Name">
+
+        <!-- CLASS SELECT -->
+        <select id="classSelect">
+            <option value="">Select Class</option>
+        </select>
+
+        <div id="questions"></div>
+
+        <button class="btn-add" onclick="addQuestion()">+ Add Question</button>
+        <button class="btn-save" onclick="saveTest()">Save Test</button>
     </div>
+
+    <!-- TEST LIST -->
+    <div class="section">
+        <h2>Saved Tests</h2>
+        <div id="testList">Loading...</div>
+    </div>
+
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, serverTimestamp, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { 
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    deleteDoc,
+    doc,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-        authDomain: "assessment-launcher439.firebaseapp.com",
-        projectId: "assessment-launcher439",
-        storageBucket: "assessment-launcher439.firebasestorage.app",
-        messagingSenderId: "654911094206",
-        appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-    };
+const firebaseConfig = {
+    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+    authDomain: "assessment-launcher439.firebaseapp.com",
+    projectId: "assessment-launcher439",
+    storageBucket: "assessment-launcher439.firebasestorage.app",
+    messagingSenderId: "654911094206",
+    appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    // --- SECURE AUTH CHECK ---
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            console.log("Teacher Identity Verified:", user.email);
-            renderTests();
-        } else {
-            alert("Please log in first.");
-            window.location.href = "teacher.html"; 
-        }
+// 🔒 AUTH CHECK
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        loadTests();
+        loadClasses();
+    } else {
+        window.location.href = "teacher.html";
+    }
+});
+
+
+// 📚 CREATE CLASS
+window.createClass = async function() {
+    const name = document.getElementById("className").value;
+
+    if (!name) return alert("Enter class name");
+
+    await addDoc(collection(db, "classes"), {
+        className: name,
+        teacherId: auth.currentUser.uid,
+        students: []
     });
 
-    // --- ADD QUESTION TO UI ---
-    window.addQuestion = function() {
-        const div = document.createElement('div');
-        div.className = 'card';
+    alert("Class created!");
+    loadClasses();
+};
+
+
+// 📥 LOAD CLASSES INTO DROPDOWN
+window.loadClasses = async function() {
+    const snap = await getDocs(collection(db, "classes"));
+    const select = document.getElementById("classSelect");
+
+    select.innerHTML = `<option value="">Select Class</option>`;
+
+    snap.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.data().className;
+        select.appendChild(opt);
+    });
+};
+
+
+// ➕ ADD QUESTION
+window.addQuestion = function() {
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+        <input placeholder="Question">
+        <input placeholder="A">
+        <input placeholder="B">
+        <input placeholder="C">
+        <input placeholder="D">
+        <input placeholder="Correct (A/B/C/D)">
+    `;
+
+    document.getElementById("questions").appendChild(div);
+};
+
+
+// 💾 SAVE TEST (WITH CLASS)
+window.saveTest = async function() {
+    const name = document.getElementById("testName").value;
+    const classId = document.getElementById("classSelect").value;
+
+    const cards = document.querySelectorAll(".card");
+
+    if (!name || !classId) return alert("Fill in all fields");
+
+    const questions = Array.from(cards).map(c => {
+        const i = c.querySelectorAll("input");
+        return {
+            q: i[0].value,
+            a: i[1].value,
+            b: i[2].value,
+            c: i[3].value,
+            d: i[4].value,
+            correct: i[5].value.toUpperCase()
+        };
+    });
+
+    await addDoc(collection(db, "tests"), {
+        testName: name,
+        classId: classId,
+        questions: questions,
+        teacherId: auth.currentUser.uid,
+        createdAt: serverTimestamp()
+    });
+
+    alert("Test saved!");
+    location.reload();
+};
+
+
+// 📄 LOAD TESTS
+window.loadTests = async function() {
+    const list = document.getElementById("testList");
+    const snap = await getDocs(collection(db, "tests"));
+
+    list.innerHTML = "";
+
+    snap.forEach(t => {
+        const d = t.data();
+
+        const div = document.createElement("div");
+        div.className = "card";
+
         div.innerHTML = `
-            <input placeholder="Question Text">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <input placeholder="Option A">
-                <input placeholder="Option B">
-                <input placeholder="Option C">
-                <input placeholder="Option D">
-            </div>
-            <input placeholder="Correct Answer (A, B, C, or D)" maxlength="1" style="width: 250px;">
+            <b>${d.testName}</b><br>
+            <small>Class ID: ${d.classId}</small><br>
+            <button class="btn-delete" onclick="deleteTest('${t.id}')">Delete</button>
         `;
-        document.getElementById('questions').appendChild(div);
-    };
 
-    // --- SAVE TEST TO FIRESTORE ---
-    window.saveTest = async function() {
-        const name = document.getElementById('testName').value;
-        const qDivs = document.querySelectorAll('#questions .card');
-        
-        if (!name || qDivs.length === 0) return alert("Please fill in the name and add questions.");
+        list.appendChild(div);
+    });
+};
 
-        const questions = Array.from(qDivs).map(div => {
-            const inputs = div.querySelectorAll('input');
-            return {
-                q: inputs[0].value,
-                a: inputs[1].value,
-                b: inputs[2].value,
-                c: inputs[3].value,
-                d: inputs[4].value,
-                correct: inputs[5].value.toUpperCase().trim()
-            };
-        });
 
-        try {
-            await addDoc(collection(db, "tests"), {
-                testName: name,
-                questions: questions,
-                teacherId: auth.currentUser.uid,
-                createdAt: serverTimestamp()
-            });
+// ❌ DELETE TEST
+window.deleteTest = async function(id) {
+    await deleteDoc(doc(db, "tests", id));
+    loadTests();
+};
 
-            alert("Success: Assessment is now live!");
-            location.reload(); 
-        } catch (e) {
-            alert("Error: " + e.message);
-        }
-    };
-
-    // --- RENDER SAVED TESTS ---
-    window.renderTests = async function() {
-        const list = document.getElementById('testList');
-        try {
-            const snap = await getDocs(collection(db, "tests"));
-            list.innerHTML = "";
-            
-            if (snap.empty) {
-                list.innerHTML = "No tests found. Create one above!";
-                return;
-            }
-
-            snap.forEach(testDoc => {
-                const data = testDoc.data();
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.style.borderLeft = "6px solid #1a73e8";
-                div.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong>${data.testName}</strong><br>
-                            <small>${data.questions.length} Questions | ID: ${testDoc.id}</small>
-                        </div>
-                        <div>
-                            <button class="btn-results" onclick="window.location.href='test-results.html?id=${testDoc.id}'">View Results</button>
-                            <button class="btn-delete" onclick="deleteTest('${testDoc.id}')">Delete</button>
-                        </div>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-        } catch (e) {
-            list.innerHTML = "Error loading database.";
-        }
-    };
-
-    // --- DELETE TEST ---
-    window.deleteTest = async function(id) {
-        if(confirm("Are you sure? All student results for this test will be hard to find if you delete the test definition.")){
-            await deleteDoc(doc(db, "tests", id));
-            renderTests();
-        }
-    };
 </script>
 
 </body>
