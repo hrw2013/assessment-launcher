@@ -96,6 +96,15 @@
         if (selected && selected.value === q.correct) score++;
     });
 
+       window.goBack = function() {
+    window.close();
+
+    // fallback (in case browser blocks close)
+    setTimeout(() => {
+        window.location.href = "student-logged-in.html";
+    }, 300);
+};
+       
     try {
         await addDoc(collection(db, "results"), {
             testId: testId,
