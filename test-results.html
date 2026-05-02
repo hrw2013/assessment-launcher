@@ -54,39 +54,61 @@
     const testId = urlParams.get('id');
 
     async function fetchResults() {
-        const body = document.getElementById('resultsBody');
-        try {
-            // 2. Query using testId instead of name
-// Inside test-results.html
-// This query looks for the "testId" field we saved above
-const q = query(collection(db, "results"), where("testId", "==", testId));
-const snap = await getDocs(q);
-            
-            body.innerHTML = "";
-            if (snap.empty) {
-                body.innerHTML = "<tr><td colspan='4'>No one has finished this test yet.</td></tr>";
-                return;
+    const body = document.getElementById('resultsBody');
+    const header = document.getElementById('headerTitle');
+    
+    console.log("Checking for results associated with ID:", testId);
+
+    try {
+        // Step 1: Query the database
+        const q = query(collection(db, "results"), where("testId", "==", testId));
+        const snap = await getDocs(q);
+        
+        console.log("Database responded. Documents found:", snap.size);
+
+        // Step 2: Check if empty
+        if (snap.empty) {
+            body.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">
+                No results found for this Test ID in the database.<br>
+                <small>(Search ID: ${testId})</small>
+            </td></tr>`;
+            return;
+        }
+
+        // Step 3: Clear the "Loading" text
+        body.innerHTML = "";
+
+        // Step 4: Loop through and build the rows
+        snap.forEach((doc) => {
+            const data = doc.data();
+            console.log("Processing student row:", data.studentName);
+
+            // Create the date string safely
+            let dateStr = "N/A";
+            if (data.completedAt && data.completedAt.toDate) {
+                dateStr = data.completedAt.toDate().toLocaleDateString();
             }
 
-            // We can grab the Test Name from the first result found to update the header
-            document.getElementById('headerTitle').innerText = "Results for: " + snap.docs[0].data().testName;
+            // Update Header Name if we haven't yet
+            if (data.testName) header.innerText = "Results for: " + data.testName;
 
-            snap.forEach(doc => {
-                const data = doc.data();
-                const date = data.completedAt ? data.completedAt.toDate().toLocaleDateString() : "N/A";
-                body.innerHTML += `<tr>
-                    <td>${data.studentName}</td>
-                    <td>${data.score} / ${data.total}</td>
-                    <td>${data.percentage}%</td>
-                    <td>${date}</td>
-                </tr>`;
-            });
-        } catch (e) {
-            console.error(e);
-            body.innerHTML = "<tr><td colspan='4'>Permission Error or Database Issue.</td></tr>";
-        }
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${data.studentName || 'Unknown Student'}</td>
+                <td>${data.score} / ${data.total}</td>
+                <td>${data.percentage}%</td>
+                <td>${dateStr}</td>
+            `;
+            body.appendChild(row);
+        });
+
+        console.log("Table successfully populated.");
+
+    } catch (error) {
+        console.error("CRITICAL ERROR:", error);
+        body.innerHTML = `<tr><td colspan="4" style="color:red;">Error: ${error.message}</td></tr>`;
     }
-
+}        
     if (testId) {
         fetchResults();
     } else {
