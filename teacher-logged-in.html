@@ -195,8 +195,15 @@ window.loadTests = async function() {
 
         div.innerHTML = `
             <b>${d.testName}</b><br>
-            <small>Class ID: ${d.classId}</small><br>
-            <button class="btn-delete" onclick="deleteTest('${t.id}')">Delete</button>
+            <small>Class ID: ${d.classId || "None"}</small><br><br>
+
+            <button onclick="window.location.href='test-results.html?id=${t.id}'">
+                View Results
+            </button>
+
+            <button class="btn-delete" onclick="deleteTest('${t.id}')">
+                Delete
+            </button>
         `;
 
         list.appendChild(div);
