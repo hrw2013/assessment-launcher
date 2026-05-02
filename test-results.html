@@ -57,8 +57,10 @@
         const body = document.getElementById('resultsBody');
         try {
             // 2. Query using testId instead of name
-            const q = query(collection(db, "results"), where("testId", "==", testId));
-            const snap = await getDocs(q);
+// Inside test-results.html
+// This query looks for the "testId" field we saved above
+const q = query(collection(db, "results"), where("testId", "==", testId));
+const snap = await getDocs(q);
             
             body.innerHTML = "";
             if (snap.empty) {
