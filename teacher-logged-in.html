@@ -23,9 +23,27 @@
     <button class="save" onclick="saveTest()">Save & Upload Test</button>
 </div>
 
-<h2>Online Tests (Firestore)</h2>
+<h2>Online Tests</h2>
 <div id="testList"></div>
 
+    <hr>
+<h2>Student Results</h2>
+<button onclick="loadResults()">Refresh Results</button>
+<div id="resultsTableContainer" class="card">
+    <table style="width:100%; text-align:left; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 2px solid #ddd;">
+                <th>Student</th>
+                <th>Test</th>
+                <th>Score</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody id="resultsBody">
+            </tbody>
+    </table>
+</div>
+    
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -107,6 +125,42 @@
         }
     };
 
+    window.loadResults = async function() {
+    const resultsBody = document.getElementById('resultsBody');
+    resultsBody.innerHTML = "Loading...";
+
+    try {
+        const querySnapshot = await getDocs(collection(db, "results"));
+        resultsBody.innerHTML = "";
+
+        if (querySnapshot.empty) {
+            resultsBody.innerHTML = "<tr><td colspan='4'>No results found yet.</td></tr>";
+            return;
+        }
+
+        querySnapshot.forEach((doc) => {
+            const res = doc.data();
+            const date = res.completedAt ? res.completedAt.toDate().toLocaleDateString() : "N/A";
+            
+            const row = document.createElement('tr');
+            row.style.borderBottom = "1px solid #eee";
+            row.innerHTML = `
+                <td style="padding:10px;">${res.studentName}</td>
+                <td>${res.testName}</td>
+                <td><strong>${res.score}/${res.total}</strong> (${res.percentage}%)</td>
+                <td>${date}</td>
+            `;
+            resultsBody.appendChild(row);
+        });
+    } catch (error) {
+        console.error("Error loading results:", error);
+        resultsBody.innerHTML = "Error loading data.";
+    }
+};
+
+// Optional: Auto-load results when page opens
+// loadResults();
+    
     window.renderTests = async function() {
         const list = document.getElementById('testList');
         try {
