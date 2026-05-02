@@ -1,72 +1,134 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Teacher</title>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-  authDomain: "assessment-launcher439.firebaseapp.com",
-  projectId: "assessment-launcher439",
-  storageBucket: "assessment-launcher439.firebasestorage.app",
-  messagingSenderId: "654911094206",
-  appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-
-window.createTest = async function () {
-  const name = testName.value;
-
-  await addDoc(collection(db, "tests"), {
-    name,
-    assigned: false,
-    questions: []
-  });
-
-  loadTests();
-};
-
-async function loadTests() {
-  const snap = await getDocs(collection(db, "tests"));
-  list.innerHTML = "";
-
-  snap.forEach(d => {
-    const t = d.data();
-
-    list.innerHTML += `
-      <div>
-        <b>${t.name}</b>
-        <button onclick="assign('${d.id}')">Assign</button>
-      </div>
-    `;
-  });
-}
-
-window.assign = async function (id) {
-  await updateDoc(doc(db, "tests", id), {
-    assigned: true
-  });
-  loadTests();
-};
-</script>
+    <title>Teacher Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; text-align: center; }
+        .card { background: white; border: 1px solid #ddd; padding: 15px; margin: 10px auto; border-radius: 8px; max-width: 500px; text-align: left; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        input { width: 90%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; display: block; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; border: none; border-radius: 4px; background: #007bff; color: white; }
+        button.save { background: #28a745; }
+        button.assign { background: #ffc107; color: black; }
+        h1, h2 { color: #333; }
+    </style>
 </head>
-
 <body>
 
+<h1>Teacher Dashboard</h1>
 
-<h2>Create Test</h2>
-<input id="testName" placeholder="test name">
-<button onclick="createTest()">Create</button>
+<div class="card">
+    <input id="testName" placeholder="Test Name (e.g. Midterm)">
+    <div id="questions"></div>
+    <button onclick="addQuestion()">+ Add Question</button>
+    <button class="save" onclick="saveTest()">Save & Upload Test</button>
+</div>
 
-<h2>Tests</h2>
-<div id="list"></div>
+<h2>Online Tests (Firestore)</h2>
+<div id="testList"></div>
+
+<script type="module">
+    // --- FIREBASE SETUP ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+        authDomain: "assessment-launcher439.firebaseapp.com",
+        projectId: "assessment-launcher439",
+        storageBucket: "assessment-launcher439.firebasestorage.app",
+        messagingSenderId: "654911094206",
+        appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // --- INTERFACE LOGIC ---
+
+    // Make functions global so HTML buttons can see them
+    window.addQuestion = function() {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.style.backgroundColor = "#f0f7ff";
+        div.innerHTML = `
+            <input placeholder="Question Text">
+            <input placeholder="Option A">
+            <input placeholder="Option B">
+            <input placeholder="Option C">
+            <input placeholder="Option D">
+            <input placeholder="Correct Answer (A/B/C/D)" maxlength="1">
+        `;
+        document.getElementById('questions').appendChild(div);
+    };
+
+    window.saveTest = async function() {
+        const name = document.getElementById('testName').value;
+        const qDivs = document.querySelectorAll('#questions .card');
+        
+        if (!name) return alert("Please enter a Test Name");
+        if (qDivs.length === 0) return alert("Add at least one question");
+
+        const questions = [];
+
+        qDivs.forEach(div => {
+            const inputs = div.querySelectorAll('input');
+            questions.push({
+                q: inputs[0].value,
+                a: inputs[1].value,
+                b: inputs[2].value,
+                c: inputs[3].value,
+                d: inputs[4].value,
+                correct: inputs[5].value.toUpperCase()
+            });
+        });
+
+        try {
+            // This saves the test to Firestore so students can see it
+            await addDoc(collection(db, "tests"), {
+                testName: name,
+                questions: questions,
+                createdAt: serverTimestamp(),
+                status: "active" // You can use this to hide/show tests
+            });
+
+            alert("Test successfully uploaded to the cloud!");
+            document.getElementById('questions').innerHTML = '';
+            document.getElementById('testName').value = '';
+            renderTests(); // Refresh the list
+        } catch (error) {
+            console.error("Error saving test: ", error);
+            alert("Error saving: " + error.message);
+        }
+    };
+
+    window.renderTests = async function() {
+        const list = document.getElementById('testList');
+        list.innerHTML = 'Loading tests...';
+
+        try {
+            const querySnapshot = await getDocs(collection(db, "tests"));
+            list.innerHTML = '';
+
+            querySnapshot.forEach((doc) => {
+                const test = doc.data();
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `
+                    <strong>${test.testName}</strong><br>
+                    <small>${test.questions.length} Questions</small><br>
+                    <button class="assign" onclick="alert('Test is already live for students!')">Live on Student Portal</button>
+                `;
+                list.appendChild(div);
+            });
+        } catch (error) {
+            list.innerHTML = "Error loading tests.";
+        }
+    };
+
+    // Load tests on page startup
+    renderTests();
+
+</script>
 
 </body>
 </html>
