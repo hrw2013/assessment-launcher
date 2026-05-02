@@ -48,6 +48,11 @@ import {
     doc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import { 
+    getAuth, 
+    onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
 const firebaseConfig = {
     apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
     authDomain: "assessment-launcher439.firebaseapp.com",
@@ -59,12 +64,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-// Get test ID
+// Get test ID from URL
 const urlParams = new URLSearchParams(window.location.search);
 const testId = urlParams.get('id');
 
-// LOAD RESULTS
+// 📊 LOAD RESULTS
 async function fetchResults() {
     const body = document.getElementById('resultsBody');
     const header = document.getElementById('headerTitle');
@@ -123,7 +129,7 @@ async function fetchResults() {
     }
 }
 
-// DELETE RESULT
+// 🗑 DELETE RESULT
 window.deleteResult = async function(id) {
     if (!confirm("Delete this response?")) return;
 
@@ -135,7 +141,7 @@ window.deleteResult = async function(id) {
     }
 };
 
-// START
+// 🔐 AUTH CHECK (FIXED)
 onAuthStateChanged(auth, (user) => {
 
     console.log("AUTH STATE:", user);
@@ -146,7 +152,6 @@ onAuthStateChanged(auth, (user) => {
         return;
     }
 
-    // ONLY run after login is confirmed
     if (testId) {
         fetchResults();
     } else {
