@@ -103,11 +103,10 @@
                 testContainer.appendChild(card);
             });
 
-        } catch (error) {
-            console.error("Error loading tests:", error);
-            testContainer.innerHTML = "<p>Error connecting to database.</p>";
-        }
-    }
+     catch (e) {
+    console.error("FULL FIREBASE ERROR:", e);
+    alert("Firestore error: " + e.message);
+}
 
     // --- REDIRECT TO ASSESSMENT PAGE ---
     window.startAssessment = function(id) {
