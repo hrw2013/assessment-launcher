@@ -93,7 +93,13 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
+// Student view
 
+    window.openStudentView = function(testId) {
+    window.open(`student-assessment.html?id=${testId}`, "_blank");
+};
+
+    
 // 📚 CREATE CLASS
 window.createClass = async function() {
     const name = document.getElementById("className").value;
@@ -193,18 +199,22 @@ window.loadTests = async function() {
         const div = document.createElement("div");
         div.className = "card";
 
-        div.innerHTML = `
-            <b>${d.testName}</b><br>
-            <small>Class ID: ${d.classId || "None"}</small><br><br>
+       div.innerHTML = `
+    <b>${d.testName}</b><br>
+    <small>Class ID: ${d.classId || "None"}</small><br><br>
 
-            <button onclick="window.location.href='test-results.html?id=${t.id}'">
-                View Results
-            </button>
+    <button onclick="window.location.href='test-results.html?id=${t.id}'">
+        View Results
+    </button>
 
-            <button class="btn-delete" onclick="deleteTest('${t.id}')">
-                Delete
-            </button>
-        `;
+    <button onclick="openStudentView('${t.id}')">
+        👁 Student View
+    </button>
+
+    <button class="btn-delete" onclick="deleteTest('${t.id}')">
+        Delete
+    </button>
+`;
 
         list.appendChild(div);
     });
