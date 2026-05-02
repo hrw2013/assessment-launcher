@@ -1,61 +1,119 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-<title>Student</title>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-  authDomain: "assessment-launcher439.firebaseapp.com",
-  projectId: "assessment-launcher439",
-  storageBucket: "assessment-launcher439.firebasestorage.app",
-  messagingSenderId: "654911094206",
-  appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-};
-
-  snap.forEach(d => {
-    const t = d.data();
-    if (!t.assigned) return;
-
-    dash.innerHTML += `
-      <div>
-        <b>${t.name}</b>
-        <button onclick="takeTest('${d.id}')">Take</button>
-      </div>
-    `;
-  });
-};
-
-window.takeTest = function (id) {
-  window.open("about:blank").document.write("Test would load here (next upgrade)");
-};
-
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-
-const auth = getAuth();
-
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    console.log("Logged in as:", user.email);
-    loadDashboard(); // show tests
-  } else {
-    window.location.href = "student.html"; // or teacher login page
-  }
-});
-</script>
-
+    <title>Student Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; background-color: #f0f2f5; text-align: center; }
+        .container { max-width: 800px; margin: auto; }
+        .test-card { 
+            background: white; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: left;
+        }
+        .test-info h3 { margin: 0; color: #1a73e8; }
+        .test-info p { margin: 5px 0 0; color: #666; font-size: 14px; }
+        .btn-take { 
+            background: #1a73e8; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+        .btn-take:hover { background: #1557b0; }
+        .welcome-header { margin-bottom: 30px; }
+    </style>
 </head>
-
 <body>
 
+<div class="container">
+    <div class="welcome-header">
+        <h1>Welcome, Student!</h1>
+        <p>Select an assessment below to begin.</p>
+    </div>
 
-<h2>Student Dashboard</h2>
-<div id="dash"></div>
+    <div id="availableTests">Loading assessments...</div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+        authDomain: "assessment-launcher439.firebaseapp.com",
+        projectId: "assessment-launcher439",
+        storageBucket: "assessment-launcher439.firebasestorage.app",
+        messagingSenderId: "654911094206",
+        appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // --- CHECK LOGIN ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log("Student Logged In:", user.email);
+            loadTests();
+        } else {
+            window.location.href = "login.html"; // Redirect if not logged in
+        }
+    });
+
+    // --- LOAD TESTS FROM FIRESTORE ---
+    async function loadTests() {
+        const testContainer = document.getElementById('availableTests');
+        
+        try {
+            // Fetch tests sorted by newest first
+            const q = query(collection(db, "tests"), orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            testContainer.innerHTML = "";
+
+            if (querySnapshot.empty) {
+                testContainer.innerHTML = "<p>No assessments available right now.</p>";
+                return;
+            }
+
+            querySnapshot.forEach((doc) => {
+                const test = doc.data();
+                const testId = doc.id;
+
+                const card = document.createElement('div');
+                card.className = 'test-card';
+                card.innerHTML = `
+                    <div class="test-info">
+                        <h3>${test.testName}</h3>
+                        <p>${test.questions.length} Questions</p>
+                    </div>
+                    <button class="btn-take" onclick="startAssessment('${testId}')">Take Test</button>
+                `;
+                testContainer.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error("Error loading tests:", error);
+            testContainer.innerHTML = "<p>Error connecting to database.</p>";
+        }
+    }
+
+    // --- REDIRECT TO ASSESSMENT PAGE ---
+    window.startAssessment = function(id) {
+        // Sends the student to the assessment page with the specific Test ID
+        window.location.href = `student-assessment.html?id=${id}`;
+    };
+</script>
 
 </body>
 </html>
