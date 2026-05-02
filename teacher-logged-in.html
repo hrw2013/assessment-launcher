@@ -1,53 +1,44 @@
 <!DOCTYPE html>
-<html> 
+<html>
 <head>
     <title>Teacher Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; text-align: center; }
-        .card { background: white; border: 1px solid #ddd; padding: 15px; margin: 10px auto; border-radius: 8px; max-width: 500px; text-align: left; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        input { width: 90%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; display: block; }
-        button { padding: 10px 15px; margin: 5px; cursor: pointer; border: none; border-radius: 4px; background: #007bff; color: white; }
-        button.save { background: #28a745; }
-        button.assign { background: #ffc107; color: black; }
-        h1, h2 { color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 900px; margin: auto; }
+        .section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 30px; }
+        h1, h2 { color: #1a73e8; }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .card { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; margin: 10px 0; border-radius: 8px; position: relative; }
+        button { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; margin-right: 10px; }
+        .btn-add { background: #34a853; color: white; }
+        .btn-save { background: #1a73e8; color: white; width: 100%; margin-top: 20px; }
+        .btn-results { background: #fbbc05; color: #333; }
+        .btn-delete { background: #ea4335; color: white; padding: 5px 10px; font-size: 12px; }
     </style>
 </head>
 <body>
 
-<h1>Teacher Dashboard</h1>
+<div class="container">
+    <h1>Teacher Dashboard</h1>
 
-<div class="card">
-    <input id="testName" placeholder="Test Name (e.g. Midterm)">
-    <div id="questions"></div>
-    <button onclick="addQuestion()">+ Add Question</button>
-    <button class="save" onclick="saveTest()">Save & Upload Test</button>
+    <div class="section">
+        <h2>Create New Assessment</h2>
+        <input id="testName" placeholder="Enter Test Name (e.g., Biology Quiz 1)">
+        <div id="questions"></div>
+        <button class="btn-add" onclick="addQuestion()">+ Add Question</button>
+        <button class="btn-save" onclick="saveTest()">Upload & Distribute Test</button>
+    </div>
+
+    <div class="section">
+        <h2>Your Saved Assessments</h2>
+        <div id="testList">Loading tests...</div>
+    </div>
 </div>
 
-<h2>Online Tests</h2>
-<div id="testList"></div>
-
-    <hr>
-<h2>Student Results</h2>
-<button onclick="loadResults()">Refresh Results</button>
-<div id="resultsTableContainer" class="card">
-    <table style="width:100%; text-align:left; border-collapse: collapse;">
-        <thead>
-            <tr style="border-bottom: 2px solid #ddd;">
-                <th>Student</th>
-                <th>Test</th>
-                <th>Score</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody id="resultsBody">
-            </tbody>
-    </table>
-</div>
-    
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, serverTimestamp, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
@@ -62,127 +53,112 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // --- CHECK LOGIN ON LOAD ---
+    // --- SECURE AUTH CHECK ---
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            console.log("✅ AUTH SUCCESS: Logged in as", user.email);
-            console.log("Your UID is:", user.uid);
+            console.log("Teacher Identity Verified:", user.email);
             renderTests();
         } else {
-            console.warn("❌ AUTH FAILURE: No user logged in.");
+            alert("Please log in first.");
+            window.location.href = "teacher.html"; 
         }
     });
 
+    // --- ADD QUESTION TO UI ---
     window.addQuestion = function() {
         const div = document.createElement('div');
         div.className = 'card';
         div.innerHTML = `
             <input placeholder="Question Text">
-            <input placeholder="Option A">
-            <input placeholder="Option B">
-            <input placeholder="Option C">
-            <input placeholder="Option D">
-            <input placeholder="Correct Answer (A/B/C/D)" maxlength="1">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input placeholder="Option A">
+                <input placeholder="Option B">
+                <input placeholder="Option C">
+                <input placeholder="Option D">
+            </div>
+            <input placeholder="Correct Answer (A, B, C, or D)" maxlength="1" style="width: 250px;">
         `;
         document.getElementById('questions').appendChild(div);
     };
 
+    // --- SAVE TEST TO FIRESTORE ---
     window.saveTest = async function() {
-        // DEBUG CHECK 1: Auth
-        if (!auth.currentUser) {
-            alert("CRITICAL ERROR: You are not logged in according to Firebase. Go back to the login page.");
-            return;
-        }
-
         const name = document.getElementById('testName').value;
         const qDivs = document.querySelectorAll('#questions .card');
         
-        if (!name || qDivs.length === 0) {
-            alert("Please add a name and at least one question.");
-            return;
-        }
+        if (!name || qDivs.length === 0) return alert("Please fill in the name and add questions.");
 
         const questions = Array.from(qDivs).map(div => {
-            const i = div.querySelectorAll('input');
-            return { q: i[0].value, a: i[1].value, b: i[2].value, c: i[3].value, d: i[4].value, correct: i[5].value.toUpperCase() };
+            const inputs = div.querySelectorAll('input');
+            return {
+                q: inputs[0].value,
+                a: inputs[1].value,
+                b: inputs[2].value,
+                c: inputs[3].value,
+                d: inputs[4].value,
+                correct: inputs[5].value.toUpperCase().trim()
+            };
         });
 
         try {
-            console.log("Attempting to write to collection 'tests'...");
-            const docRef = await addDoc(collection(db, "tests"), {
+            await addDoc(collection(db, "tests"), {
                 testName: name,
                 questions: questions,
-                authorId: auth.currentUser.uid,
+                teacherId: auth.currentUser.uid,
                 createdAt: serverTimestamp()
             });
-            console.log("✅ SAVE SUCCESS! ID:", docRef.id);
-            alert("Test Saved Successfully!");
+
+            alert("Success: Assessment is now live!");
             location.reload(); 
-        } catch (error) {
-            console.error("❌ FIREBASE PERMISSION ERROR:", error.code);
-            console.error("Full Error Object:", error);
-            alert("PERMISSION ERROR: Check your Firestore Rules and User Role.");
+        } catch (e) {
+            alert("Error: " + e.message);
         }
     };
 
-    window.loadResults = async function() {
-    const resultsBody = document.getElementById('resultsBody');
-    resultsBody.innerHTML = "Loading...";
-
-    try {
-        const querySnapshot = await getDocs(collection(db, "results"));
-        resultsBody.innerHTML = "";
-
-        if (querySnapshot.empty) {
-            resultsBody.innerHTML = "<tr><td colspan='4'>No results found yet.</td></tr>";
-            return;
-        }
-
-        querySnapshot.forEach((doc) => {
-            const res = doc.data();
-            const date = res.completedAt ? res.completedAt.toDate().toLocaleDateString() : "N/A";
-            
-            const row = document.createElement('tr');
-            row.style.borderBottom = "1px solid #eee";
-            row.innerHTML = `
-                <td style="padding:10px;">${res.studentName}</td>
-                <td>${res.testName}</td>
-                <td><strong>${res.score}/${res.total}</strong> (${res.percentage}%)</td>
-                <td>${date}</td>
-            `;
-            resultsBody.appendChild(row);
-        });
-    } catch (error) {
-        console.error("Error loading results:", error);
-        resultsBody.innerHTML = "Error loading data.";
-    }
-};
-
-// Optional: Auto-load results when page opens
-// loadResults();
-    
+    // --- RENDER SAVED TESTS ---
     window.renderTests = async function() {
-    const list = document.getElementById('testList');
-    try {
-        const querySnapshot = await getDocs(collection(db, "tests"));
-        list.innerHTML = '';
+        const list = document.getElementById('testList');
+        try {
+            const snap = await getDocs(collection(db, "tests"));
+            list.innerHTML = "";
+            
+            if (snap.empty) {
+                list.innerHTML = "No tests found. Create one above!";
+                return;
+            }
 
-        querySnapshot.forEach((doc) => {
-            const test = doc.data();
-            const div = document.createElement('div');
-            div.className = 'card';
-            // Encode the name so spaces/special characters don't break the URL
-            const encodedName = encodeURIComponent(test.testName);
-            div.innerHTML = `
-                <strong>${test.testName}</strong><br>
-                <button onclick="window.location.href='test-results.html?name=${encodedName}'">
-                    View Student Results
-                </button>
-            `;
-            list.appendChild(div);
-        });
-    } catch (error) { console.error(error); }
-};
+            snap.forEach(testDoc => {
+                const data = testDoc.data();
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.style.borderLeft = "6px solid #1a73e8";
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${data.testName}</strong><br>
+                            <small>${data.questions.length} Questions | ID: ${testDoc.id}</small>
+                        </div>
+                        <div>
+                            <button class="btn-results" onclick="window.location.href='test-results.html?id=${testDoc.id}'">View Results</button>
+                            <button class="btn-delete" onclick="deleteTest('${testDoc.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        } catch (e) {
+            list.innerHTML = "Error loading database.";
+        }
+    };
+
+    // --- DELETE TEST ---
+    window.deleteTest = async function(id) {
+        if(confirm("Are you sure? All student results for this test will be hard to find if you delete the test definition.")){
+            await deleteDoc(doc(db, "tests", id));
+            renderTests();
+        }
+    };
 </script>
+
 </body>
 </html>
