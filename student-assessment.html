@@ -98,15 +98,16 @@
 
         try {
             // Save result using the Test ID and the Student's Info
-            await addDoc(collection(db, "results"), {
-                testId: testId,
-                testName: currentTest.testName,
-                studentName: studentEmail, // Or use a 'displayName' if you have one
-                score: score,
-                total: total,
-                percentage: Math.round((score/total)*100),
-                completedAt: serverTimestamp()
-            });
+          // Inside student-assessment.html
+await addDoc(collection(db, "results"), {
+    testId: testId,        // This MUST match what the teacher's query looks for
+    testName: currentTest.testName,
+    studentName: studentEmail, 
+    score: score,
+    total: total,
+    percentage: Math.round((score / total) * 100),
+    completedAt: serverTimestamp()
+});
 
             document.getElementById('testContent').innerHTML = `
                 <h2>Submitted!</h2>
