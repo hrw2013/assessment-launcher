@@ -71,43 +71,31 @@
     });
 
     // --- LOAD TESTS FROM FIRESTORE ---
-    async function loadTests() {
-        const testContainer = document.getElementById('availableTests');
-        
-        try {
-            // Fetch tests sorted by newest first
-            const q = query(collection(db, "tests"), orderBy("createdAt", "desc"));
-            const querySnapshot = await getDocs(q);
-            
-            testContainer.innerHTML = "";
+async function loadTests() {
+    try {
+        console.log("Loading tests...");
 
-            if (querySnapshot.empty) {
-                testContainer.innerHTML = "<p>No assessments available right now.</p>";
-                return;
-            }
+        const snap = await getDocs(collection(db, "tests"));
 
-    
-            querySnapshot.forEach((doc) => {
-                const test = doc.data();
-                const testId = doc.id;
+        const dash = document.getElementById("dash");
+        dash.innerHTML = "";
 
-                const card = document.createElement('div');
-                card.className = 'test-card';
-                card.innerHTML = `
-                    <div class="test-info">
-                        <h3>${test.testName}</h3>
-                        <p>${test.questions.length} Questions</p>
-                    </div>
-                    <button onclick="openTest('${testDoc.id}')">Take Test</button>
-                `;
-                testContainer.appendChild(card);
-            });
+        snap.forEach(doc => {
+            const test = doc.data();
 
-     catch (e) {
-    console.error("FULL FIREBASE ERROR:", e);
-    alert("Firestore error: " + e.message);
+            dash.innerHTML += `
+                <div>
+                    <b>${test.testName}</b>
+                    <button onclick="openTest('${doc.id}')">Take Test</button>
+                </div>
+            `;
+        });
+
+    } catch (e) {
+        console.error("FULL FIREBASE ERROR:", e);
+        alert("Firestore error: " + e.message);
+    }
 }
-
     // --- REDIRECT TO ASSESSMENT PAGE ---
     window.startAssessment = function(id) {
         // Sends the student to the assessment page with the specific Test ID
