@@ -44,9 +44,8 @@ import {
     getDocs, 
     query, 
     where,
-    doc,
-    getDoc,
-    deleteDoc
+    deleteDoc,
+    doc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -65,7 +64,7 @@ const db = getFirestore(app);
 const urlParams = new URLSearchParams(window.location.search);
 const testId = urlParams.get('id');
 
-// 📊 LOAD RESULTS
+// LOAD RESULTS
 async function fetchResults() {
     const body = document.getElementById('resultsBody');
     const header = document.getElementById('headerTitle');
@@ -77,9 +76,8 @@ async function fetchResults() {
         if (snap.empty) {
             body.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align:center; padding:20px;">
-                        No results found.<br>
-                        <small>(Test ID: ${testId})</small>
+                    <td colspan="5" style="text-align:center;padding:20px;">
+                        No results found
                     </td>
                 </tr>
             `;
@@ -103,7 +101,7 @@ async function fetchResults() {
             const row = document.createElement("tr");
 
             row.innerHTML = `
-                <td>${data.studentName || 'Unknown Student'}</td>
+                <td>${data.studentName || "Unknown"}</td>
                 <td>${data.score} / ${data.total}</td>
                 <td>${data.percentage}%</td>
                 <td>${dateStr}</td>
@@ -118,27 +116,22 @@ async function fetchResults() {
             body.appendChild(row);
         });
 
-    } catch (error) {
-        console.error("Fetch error:", error);
-        body.innerHTML = `
-            <tr>
-                <td colspan="5" style="color:red;">
-                    Error: ${error.message}
-                </td>
-            </tr>
-        `;
+    } catch (err) {
+        console.error(err);
+        document.getElementById('resultsBody').innerHTML =
+            `<tr><td colspan="5" style="color:red;">${err.message}</td></tr>`;
     }
 }
 
-// 🗑 DELETE RESULT
-window.deleteResult = async function(resultId) {
-    if (!confirm("Delete this student response? This cannot be undone.")) return;
+// DELETE RESULT
+window.deleteResult = async function(id) {
+    if (!confirm("Delete this response?")) return;
 
     try {
-        await deleteDoc(doc(db, "results", resultId));
+        await deleteDoc(doc(db, "results", id));
         location.reload();
     } catch (e) {
-        alert("Error deleting response: " + e.message);
+        alert(e.message);
     }
 };
 
@@ -146,7 +139,7 @@ window.deleteResult = async function(resultId) {
 if (testId) {
     fetchResults();
 } else {
-    alert("No Test ID provided.");
+    alert("No test ID");
     window.location.href = "teacher-logged-in.html";
 }
 </script>
