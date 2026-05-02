@@ -1,52 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Student Assessment</title>
+    <title>Assessment</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; text-align: center; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .question-card { text-align: left; margin-bottom: 20px; padding: 15px; border-bottom: 1px solid #eee; }
-        .option { display: block; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; transition: 0.2s; }
-        .option:hover { background-color: #e9ecef; }
-        input[type="radio"] { margin-right: 10px; }
-        button { background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        #testSelector { margin-bottom: 20px; padding: 10px; width: 100%; }
-        .hidden { display: none; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; }
+        .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; }
+        .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; }
+        .option:hover { background: #f0f7ff; border-color: #1a73e8; }
+        input[type="radio"] { margin-right: 10px; transform: scale(1.2); }
+        .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; }
+        .loading { font-style: italic; color: #666; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Student Assessment</h1>
-    
-    <div id="selectionArea">
-        <p>Enter your name to begin:</p>
-        <input type="text" id="studentName" placeholder="Your Name" style="padding:10px; width:90%; margin-bottom:10px;">
-        <p>Select a Test:</p>
-        <select id="testSelector">
-            <option value="">-- Loading Tests --</option>
-        </select>
-        <br>
-        <button onclick="startTest()">Start Test</button>
-    </div>
-
-    <div id="testArea" class="hidden">
-        <h2 id="displayTestName"></h2>
-        <div id="questionContainer"></div>
-        <button onclick="calculateScore()">Submit Test</button>
-    </div>
-
-    <div id="resultArea" class="hidden">
-        <h2>Test Complete!</h2>
-        <p id="scoreDisplay" style="font-size: 24px; font-weight: bold;"></p>
-        <button onclick="location.reload()">Back to Home</button>
+    <div id="testContent">
+        <p class="loading">Loading your assessment...</p>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
@@ -61,107 +39,84 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // 1. Grab the ID from the URL (e.g., ?id=ABC123XYZ)
     const urlParams = new URLSearchParams(window.location.search);
-const testId = urlParams.get('id');
+    const testId = urlParams.get('id');
 
-// Then, instead of a dropdown, just fetch the ONE test that matches this ID:
-// const testDoc = await getDoc(doc(db, "tests", testId));
-    
-    let allTests = [];
     let currentTest = null;
+    let studentEmail = "";
 
-    // Load available tests from Firestore
-    async function loadAvailableTests() {
-        const selector = document.getElementById('testSelector');
-        try {
-            const querySnapshot = await getDocs(collection(db, "tests"));
-            selector.innerHTML = '<option value="">-- Choose a Test --</option>';
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                allTests.push({ id: doc.id, ...data });
-                let opt = document.createElement('option');
-                opt.value = doc.id;
-                opt.innerText = data.testName;
-                selector.appendChild(opt);
-            });
-        } catch (e) {
-            console.error("Error loading tests:", e);
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            studentEmail = user.email; // We'll save this with the result
+            if (testId) loadTest(testId);
+            else document.getElementById('testContent').innerHTML = "No Test ID found.";
+        } else {
+            window.location.href = "login.html";
+        }
+    });
+
+    async function loadTest(id) {
+        const docRef = doc(db, "tests", id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            currentTest = docSnap.data();
+            renderTest();
+        } else {
+            document.getElementById('testContent').innerHTML = "Assessment not found.";
         }
     }
 
-    window.startTest = function() {
-        const name = document.getElementById('studentName').value;
-        const testId = document.getElementById('testSelector').value;
-
-        if (!name || !testId) return alert("Please enter your name and select a test.");
-
-        currentTest = allTests.find(t => t.id === testId);
+    function renderTest() {
+        let html = `<h1>${currentTest.testName}</h1>`;
         
-        document.getElementById('selectionArea').classList.add('hidden');
-        document.getElementById('testArea').classList.remove('hidden');
-        document.getElementById('displayTestName').innerText = currentTest.testName;
-
-        const container = document.getElementById('questionContainer');
-        container.innerHTML = "";
-
-        currentTest.questions.forEach((q, index) => {
-            const qDiv = document.createElement('div');
-            qDiv.className = 'question-card';
-            qDiv.innerHTML = `
-                <p><strong>Q${index + 1}: ${q.q}</strong></p>
-                <label class="option"><input type="radio" name="q${index}" value="A"> A) ${q.a}</label>
-                <label class="option"><input type="radio" name="q${index}" value="B"> B) ${q.b}</label>
-                <label class="option"><input type="radio" name="q${index}" value="C"> C) ${q.c}</label>
-                <label class="option"><input type="radio" name="q${index}" value="D"> D) ${q.d}</label>
+        currentTest.questions.forEach((q, i) => {
+            html += `
+                <div class="q-block">
+                    <p><strong>${i+1}. ${q.q}</strong></p>
+                    <label class="option"><input type="radio" name="q${i}" value="A"> ${q.a}</label>
+                    <label class="option"><input type="radio" name="q${i}" value="B"> ${q.b}</label>
+                    <label class="option"><input type="radio" name="q${i}" value="C"> ${q.c}</label>
+                    <label class="option"><input type="radio" name="q${i}" value="D"> ${q.d}</label>
+                </div>
             `;
-            container.appendChild(qDiv);
         });
-    };
 
-    window.calculateScore = async function() {
+        html += `<button class="btn-submit" onclick="submitTest()">Finish & Submit</button>`;
+        document.getElementById('testContent').innerHTML = html;
+    }
+
+    window.submitTest = async function() {
         let score = 0;
         const total = currentTest.questions.length;
-        const name = document.getElementById('studentName').value;
 
-        currentTest.questions.forEach((q, index) => {
-            const selected = document.querySelector(`input[name="q${index}"]:checked`);
-            if (selected && selected.value === q.correct) {
-                score++;
-            }
+        currentTest.questions.forEach((q, i) => {
+            const selected = document.querySelector(`input[name="q${i}"]:checked`);
+            if (selected && selected.value === q.correct) score++;
         });
 
-        const percent = Math.round((score / total) * 100);
-
         try {
-            // SAVE TO FIRESTORE "results" COLLECTION
-await addDoc(collection(db, "results"), {
-    studentName: name,
-    testId: currentTest.id, // Save the unique ID here!
-    testName: currentTest.testName, // Keep the name just for easy reading
-    score: score,
-    total: total,
-    percentage: percent,
-    completedAt: serverTimestamp()
-});
-            document.getElementById('testArea').classList.add('hidden');
-            document.getElementById('resultArea').classList.remove('hidden');
-            document.getElementById('scoreDisplay').innerText = `You scored ${score} out of ${total} (${percent}%)`;
+            // Save result using the Test ID and the Student's Info
+            await addDoc(collection(db, "results"), {
+                testId: testId,
+                testName: currentTest.testName,
+                studentName: studentEmail, // Or use a 'displayName' if you have one
+                score: score,
+                total: total,
+                percentage: Math.round((score/total)*100),
+                completedAt: serverTimestamp()
+            });
 
+            document.getElementById('testContent').innerHTML = `
+                <h2>Submitted!</h2>
+                <p>You scored ${score} out of ${total}.</p>
+                <button onclick="window.location.href='student-logged-in.html'">Return to Dashboard</button>
+            `;
         } catch (e) {
-            console.error("Submission error:", e);
-            alert("Error submitting results. Tell your teacher.");
+            alert("Error submitting: " + e.message);
         }
     };
-
-    // Initialize
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            loadAvailableTests();
-        } else {
-            alert("Please log in to take the assessment.");
-            // Optional: window.location.href = "login.html";
-        }
-    });
 </script>
 
 </body>
