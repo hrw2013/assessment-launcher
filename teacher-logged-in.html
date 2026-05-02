@@ -154,17 +154,18 @@ window.saveTest = async function() {
 
     if (!name || !classId) return alert("Fill in all fields");
 
-    const questions = Array.from(cards).map(c => {
-        const i = c.querySelectorAll("input");
-        return {
-            q: i[0].value,
-            a: i[1].value,
-            b: i[2].value,
-            c: i[3].value,
-            d: i[4].value,
-            correct: i[5].value.toUpperCase()
-        };
-    });
+   const questions = Array.from(cards).map(c => {
+    const inputs = c.querySelectorAll("input");
+
+    return {
+        q: inputs[0]?.value || "",
+        a: inputs[1]?.value || "",
+        b: inputs[2]?.value || "",
+        c: inputs[3]?.value || "",
+        d: inputs[4]?.value || "",
+        correct: (inputs[5]?.value || "").toUpperCase().trim()
+    };
+});
 
     await addDoc(collection(db, "tests"), {
         testName: name,
