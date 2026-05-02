@@ -86,6 +86,7 @@
                 return;
             }
 
+    
             querySnapshot.forEach((doc) => {
                 const test = doc.data();
                 const testId = doc.id;
@@ -97,7 +98,7 @@
                         <h3>${test.testName}</h3>
                         <p>${test.questions.length} Questions</p>
                     </div>
-                    <button class="btn-take" onclick="startAssessment('${testId}')">Take Test</button>
+                    <button onclick="openTest('${testDoc.id}')">Take Test</button>
                 `;
                 testContainer.appendChild(card);
             });
@@ -112,6 +113,10 @@
     window.startAssessment = function(id) {
         // Sends the student to the assessment page with the specific Test ID
         window.location.href = `student-assessment.html?id=${id}`;
+
+        window.openTest = function(id) {
+    window.open(`student-assessment.html?id=${id}`, "_blank");
+};
     };
 </script>
 
