@@ -46,47 +46,52 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+<script type="module">
+    // ... (Your Firebase Imports and Config) ...
 
-    // 1. Get the Test Name from the URL
+    // 1. Get the ID from the URL (?id=xxxxxx)
     const urlParams = new URLSearchParams(window.location.search);
-    const testName = urlParams.get('name');
-    document.getElementById('headerTitle').innerText = "Results for: " + testName;
+    const testId = urlParams.get('id');
 
     async function fetchResults() {
         const body = document.getElementById('resultsBody');
         try {
-            // 2. Query Firestore for only this test
-            const q = query(collection(db, "results"), where("testName", "==", testName));
+            // 2. Query using testId instead of name
+            const q = query(collection(db, "results"), where("testId", "==", testId));
             const snap = await getDocs(q);
             
             body.innerHTML = "";
             if (snap.empty) {
-                body.innerHTML = "<tr><td colspan='4'>No results found for this test.</td></tr>";
+                body.innerHTML = "<tr><td colspan='4'>No one has finished this test yet.</td></tr>";
                 return;
             }
+
+            // We can grab the Test Name from the first result found to update the header
+            document.getElementById('headerTitle').innerText = "Results for: " + snap.docs[0].data().testName;
 
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.completedAt ? data.completedAt.toDate().toLocaleDateString() : "N/A";
-                const row = `<tr>
+                body.innerHTML += `<tr>
                     <td>${data.studentName}</td>
                     <td>${data.score} / ${data.total}</td>
                     <td>${data.percentage}%</td>
                     <td>${date}</td>
                 </tr>`;
-                body.innerHTML += row;
             });
         } catch (e) {
             console.error(e);
-            body.innerHTML = "<tr><td colspan='4'>Error loading results.</td></tr>";
+            body.innerHTML = "<tr><td colspan='4'>Permission Error or Database Issue.</td></tr>";
         }
     }
 
-    if (testName) {
+    if (testId) {
         fetchResults();
     } else {
+        alert("No Test ID provided.");
         window.location.href = 'teacher-logged-in.html';
     }
+</script>
 </script>
 </body>
 </html>
