@@ -19,12 +19,13 @@
     
     <table>
         <thead>
-            <tr>
-                <th>Student Name</th>
-                <th>Score</th>
-                <th>Percentage</th>
-                <th>Date Completed</th>
-            </tr>
+           <tr>
+    <th>Student Name</th>
+    <th>Score</th>
+    <th>Percentage</th>
+    <th>Date Completed</th>
+    <th>Actions</th>
+</tr>
         </thead>
         <tbody id="resultsBody"></tbody>
     </table>
@@ -128,15 +129,18 @@ async function fetchResults() {
                 header.innerText = "Results for: " + data.testName;
             }
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${data.studentName || 'Unknown'}</td>
-                <td>${data.score} / ${data.total}</td>
-                <td>${data.percentage}%</td>
-                <td>${dateStr}</td>
-            `;
-            body.appendChild(row);
-        });
+           row.innerHTML = `
+    <td>${data.studentName || 'Unknown Student'}</td>
+    <td>${data.score} / ${data.total}</td>
+    <td>${data.percentage}%</td>
+    <td>${dateStr}</td>
+    <td>
+        <button onclick="deleteResult('${doc.id}')"
+            style="background:red;color:white;border:none;padding:6px 10px;cursor:pointer;">
+            Delete
+        </button>
+    </td>
+`;
 
     } catch (error) {
         console.error("Fetch error:", error);
@@ -149,6 +153,17 @@ async function fetchResults() {
         `;
     }
 }
+
+    window.deleteResult = async function(resultId) {
+    if (!confirm("Delete this student response? This cannot be undone.")) return;
+
+    try {
+        await deleteDoc(doc(db, "results", resultId));
+        location.reload();
+    } catch (e) {
+        alert("Error deleting response: " + e.message);
+    }
+};
 </script>
 
 </body>
