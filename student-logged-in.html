@@ -2,77 +2,82 @@
 <html>
 <head>
     <title>Student Dashboard</title>
-  <style> body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; } .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); } .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; } .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; } .option:hover { background: #f0f7ff; border-color: #1a73e8; } input[type="radio"] { margin-right: 10px; transform: scale(1.2); } .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; } .loading { font-style: italic; color: #666; } </style>
+      <style> body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; } .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); } .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; } .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; } .option:hover { background: #f0f7ff; border-color: #1a73e8; } input[type="radio"] { margin-right: 10px; transform: scale(1.2); } .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; } .loading { font-style: italic; color: #666; } </style>
     </style>
 
 
 </head>
+
 <body>
 
 <div class="container">
-    <div class="welcome-header">
-        <h1>Welcome, Student!</h1>
-        <p>Select an assessment below to begin.</p>
-    </div>
+    <h2>Student Dashboard</h2>
 
-    <div id="availableTests">Loading assessments...</div>
+    <div id="dash">
+        <p id="loadingText" class="loading">Loading assessments...</p>
+    </div>
 </div>
 
-    <div id="dash"></div>
-    
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-        authDomain: "assessment-launcher439.firebaseapp.com",
-        projectId: "assessment-launcher439",
-        storageBucket: "assessment-launcher439.firebasestorage.app",
-        messagingSenderId: "654911094206",
-        appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-    };
+const firebaseConfig = {
+    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+    authDomain: "assessment-launcher439.firebaseapp.com",
+    projectId: "assessment-launcher439",
+    storageBucket: "assessment-launcher439.firebasestorage.app",
+    messagingSenderId: "654911094206",
+    appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    // --- CHECK LOGIN ---
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            console.log("Student Logged In:", user.email);
-            loadTests();
-        } else {
-            window.location.href = "login.html"; // Redirect if not logged in
-        }
-    });
+// 🔒 AUTH CHECK
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        loadTests();
+    } else {
+        window.location.href = "student.html";
+    }
+});
 
-    // --- LOAD TESTS FROM FIRESTORE ---
+// 📥 LOAD TESTS
 async function loadTests() {
     try {
         console.log("Loading tests...");
 
         const dash = document.getElementById("dash");
-
-        if (!dash) {
-            console.error("dash element not found in HTML");
-            return;
-        }
+        const loading = document.getElementById("loadingText");
 
         const snap = await getDocs(collection(db, "tests"));
 
+        // remove loading text
+        if (loading) loading.remove();
+
         dash.innerHTML = "";
 
-        snap.forEach(doc => {
-            const test = doc.data();
+        if (snap.empty) {
+            dash.innerHTML = "<p>No tests available.</p>";
+            return;
+        }
 
-            dash.innerHTML += `
-                <div>
-                    <b>${test.testName}</b>
-                    <button onclick="openTest('${doc.id}')">Take Test</button>
-                </div>
+        snap.forEach(docSnap => {
+            const test = docSnap.data();
+
+            const div = document.createElement("div");
+            div.className = "test-card";
+
+            div.innerHTML = `
+                <b>${test.testName}</b><br>
+                <small>${test.questions.length} questions</small><br>
+                <button onclick="openTest('${docSnap.id}')">Take Test</button>
             `;
+
+            dash.appendChild(div);
         });
 
     } catch (e) {
@@ -80,25 +85,11 @@ async function loadTests() {
         alert(e.message);
     }
 }
-    // --- REDIRECT TO ASSESSMENT PAGE ---
-    window.startAssessment = function(id) {
-        // Sends the student to the assessment page with the specific Test ID
-        window.location.href = `student-assessment.html?id=${id}`;
 
-        window.openTest = function(id) {
+// 🌐 OPEN TEST IN NEW TAB
+window.openTest = function(id) {
     window.open(`student-assessment.html?id=${id}`, "_blank");
 };
-    };
-
-    window.addEventListener("DOMContentLoaded", () => {
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            loadTests();
-        } else {
-            window.location.href = "login.html";
-        }
-    });
-});
 </script>
 
 </body>
