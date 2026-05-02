@@ -106,15 +106,15 @@
 };
        
     try {
-        await addDoc(collection(db, "results"), {
-            testId: testId,
-            testName: currentTest.testName,
-            studentName: studentEmail,
-            score: score,
-            total: total,
-            percentage: Math.round((score / total) * 100),
-            completedAt: serverTimestamp()
-        });
+       await addDoc(collection(db, "results"), {
+    testId: testId,
+    studentId: auth.currentUser.uid,
+    studentName: studentEmail,
+    score: score,
+    total: total,
+    percentage: Math.round((score / total) * 100),
+    completedAt: serverTimestamp()
+});
 
         // ✅ Show result + button
         document.getElementById('testContent').innerHTML = `
