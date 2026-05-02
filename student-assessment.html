@@ -61,6 +61,12 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    const urlParams = new URLSearchParams(window.location.search);
+const testId = urlParams.get('id');
+
+// Then, instead of a dropdown, just fetch the ONE test that matches this ID:
+// const testDoc = await getDoc(doc(db, "tests", testId));
+    
     let allTests = [];
     let currentTest = null;
 
