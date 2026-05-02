@@ -162,21 +162,27 @@
 // loadResults();
     
     window.renderTests = async function() {
-        const list = document.getElementById('testList');
-        try {
-            const snap = await getDocs(collection(db, "tests"));
-            list.innerHTML = "";
-            snap.forEach(doc => {
-                const t = doc.data();
-                const d = document.createElement('div');
-                d.className = 'card';
-                d.innerHTML = `<strong>${t.testName}</strong> - ${t.questions.length} Questions`;
-                list.appendChild(d);
-            });
-        } catch (e) {
-            console.error("Error loading tests:", e);
-        }
-    };
+    const list = document.getElementById('testList');
+    try {
+        const querySnapshot = await getDocs(collection(db, "tests"));
+        list.innerHTML = '';
+
+        querySnapshot.forEach((doc) => {
+            const test = doc.data();
+            const div = document.createElement('div');
+            div.className = 'card';
+            // Encode the name so spaces/special characters don't break the URL
+            const encodedName = encodeURIComponent(test.testName);
+            div.innerHTML = `
+                <strong>${test.testName}</strong><br>
+                <button onclick="window.location.href='test-results.html?name=${encodedName}'">
+                    View Student Results
+                </button>
+            `;
+            list.appendChild(div);
+        });
+    } catch (error) { console.error(error); }
+};
 </script>
 </body>
 </html>
