@@ -128,15 +128,15 @@
 
         try {
             // SAVE TO FIRESTORE "results" COLLECTION
-            await addDoc(collection(db, "results"), {
-                studentName: name,
-                testName: currentTest.testName,
-                score: score,
-                total: total,
-                percentage: percent,
-                completedAt: serverTimestamp()
-            });
-
+await addDoc(collection(db, "results"), {
+    studentName: name,
+    testId: currentTest.id, // Save the unique ID here!
+    testName: currentTest.testName, // Keep the name just for easy reading
+    score: score,
+    total: total,
+    percentage: percent,
+    completedAt: serverTimestamp()
+});
             document.getElementById('testArea').classList.add('hidden');
             document.getElementById('resultArea').classList.remove('hidden');
             document.getElementById('scoreDisplay').innerText = `You scored ${score} out of ${total} (${percent}%)`;
