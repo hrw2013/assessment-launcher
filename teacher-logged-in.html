@@ -27,8 +27,8 @@
 <div id="testList"></div>
 
 <script type="module">
-    // --- FIREBASE SETUP ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -41,15 +41,25 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // --- INTERFACE LOGIC ---
+    // --- NEW: AUTH CHECK ---
+    // This runs automatically when the page loads
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log("Logged in as:", user.email);
+            renderTests(); // Only load tests if we are logged in
+        } else {
+            console.log("No user detected!");
+            alert("Session expired. Please log in again.");
+            window.location.href = "teacher.html"; // Send back to login
+        }
+    });
 
-    // Make functions global so HTML buttons can see them
     window.addQuestion = function() {
         const div = document.createElement('div');
         div.className = 'card';
-        div.style.backgroundColor = "#f0f7ff";
         div.innerHTML = `
             <input placeholder="Question Text">
             <input placeholder="Option A">
@@ -62,14 +72,17 @@
     };
 
     window.saveTest = async function() {
+        // Double check login right before saving
+        if (!auth.currentUser) {
+            alert("You are not logged in! Cannot save.");
+            return;
+        }
+
         const name = document.getElementById('testName').value;
         const qDivs = document.querySelectorAll('#questions .card');
-        
-        if (!name) return alert("Please enter a Test Name");
-        if (qDivs.length === 0) return alert("Add at least one question");
+        if (!name || qDivs.length === 0) return alert("Fill out the test name and add questions!");
 
         const questions = [];
-
         qDivs.forEach(div => {
             const inputs = div.querySelectorAll('input');
             questions.push({
@@ -83,52 +96,36 @@
         });
 
         try {
-            // This saves the test to Firestore so students can see it
             await addDoc(collection(db, "tests"), {
                 testName: name,
                 questions: questions,
-                createdAt: serverTimestamp(),
-                status: "active" // You can use this to hide/show tests
+                createdBy: auth.currentUser.uid, // Track who made it
+                createdAt: serverTimestamp()
             });
 
-            alert("Test successfully uploaded to the cloud!");
+            alert("Test Saved!");
             document.getElementById('questions').innerHTML = '';
-            document.getElementById('testName').value = '';
-            renderTests(); // Refresh the list
+            renderTests();
         } catch (error) {
-            console.error("Error saving test: ", error);
-            alert("Error saving: " + error.message);
+            console.error(error);
+            alert("Firebase Error: " + error.message);
         }
     };
 
     window.renderTests = async function() {
         const list = document.getElementById('testList');
-        list.innerHTML = 'Loading tests...';
-
         try {
             const querySnapshot = await getDocs(collection(db, "tests"));
             list.innerHTML = '';
-
             querySnapshot.forEach((doc) => {
                 const test = doc.data();
                 const div = document.createElement('div');
                 div.className = 'card';
-                div.innerHTML = `
-                    <strong>${test.testName}</strong><br>
-                    <small>${test.questions.length} Questions</small><br>
-                    <button class="assign" onclick="alert('Test is already live for students!')">Live on Student Portal</button>
-                `;
+                div.innerHTML = `<strong>${test.testName}</strong> (${test.questions.length} Qs)`;
                 list.appendChild(div);
             });
-        } catch (error) {
-            list.innerHTML = "Error loading tests.";
-        }
+        } catch (e) { console.log("List error:", e); }
     };
-
-    // Load tests on page startup
-    renderTests();
-
 </script>
-
 </body>
 </html>
