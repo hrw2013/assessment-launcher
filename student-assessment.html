@@ -87,37 +87,37 @@
         document.getElementById('testContent').innerHTML = html;
     }
 
-    window.submitTest = async function() {
-        let score = 0;
-        const total = currentTest.questions.length;
+   window.submitTest = async function() {
+    let score = 0;
+    const total = currentTest.questions.length;
 
-        currentTest.questions.forEach((q, i) => {
-            const selected = document.querySelector(`input[name="q${i}"]:checked`);
-            if (selected && selected.value === q.correct) score++;
+    currentTest.questions.forEach((q, i) => {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && selected.value === q.correct) score++;
+    });
+
+    try {
+        await addDoc(collection(db, "results"), {
+            testId: testId,
+            testName: currentTest.testName,
+            studentName: studentEmail,
+            score: score,
+            total: total,
+            percentage: Math.round((score / total) * 100),
+            completedAt: serverTimestamp()
         });
 
-        try {
-            // Save result using the Test ID and the Student's Info
-          // Inside student-assessment.html
-await addDoc(collection(db, "results"), {
-    testId: testId,        // This MUST match what the teacher's query looks for
-    testName: currentTest.testName,
-    studentName: studentEmail, 
-    score: score,
-    total: total,
-    percentage: Math.round((score / total) * 100),
-    completedAt: serverTimestamp()
-});
+        // ✅ Show result + button
+        document.getElementById('testContent').innerHTML = `
+            <h2>Submitted!</h2>
+            <p>You scored ${score} out of ${total}.</p>
+            <button onclick="goBack()">Back to Dashboard</button>
+        `;
 
-            document.getElementById('testContent').innerHTML = `
-                <h2>Submitted!</h2>
-                <p>You scored ${score} out of ${total}.</p>
-                <button onclick="window.location.href='student-logged-in.html'">Return to Dashboard</button>
-            `;
-        } catch (e) {
-            alert("Error submitting: " + e.message);
-        }
-    };
+    } catch (e) {
+        alert("Error submitting: " + e.message);
+    }
+};
 </script>
 
 </body>
