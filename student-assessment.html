@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Assessment</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; text-align: center; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .question-card { text-align: left; margin-bottom: 20px; padding: 15px; border-bottom: 1px solid #eee; }
+        .option { display: block; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .option:hover { background-color: #e9ecef; }
+        input[type="radio"] { margin-right: 10px; }
+        button { background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        #testSelector { margin-bottom: 20px; padding: 10px; width: 100%; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Student Assessment</h1>
+    
+    <div id="selectionArea">
+        <p>Enter your name to begin:</p>
+        <input type="text" id="studentName" placeholder="Your Name" style="padding:10px; width:90%; margin-bottom:10px;">
+        <p>Select a Test:</p>
+        <select id="testSelector">
+            <option value="">-- Loading Tests --</option>
+        </select>
+        <br>
+        <button onclick="startTest()">Start Test</button>
+    </div>
+
+    <div id="testArea" class="hidden">
+        <h2 id="displayTestName"></h2>
+        <div id="questionContainer"></div>
+        <button onclick="calculateScore()">Submit Test</button>
+    </div>
+
+    <div id="resultArea" class="hidden">
+        <h2>Test Complete!</h2>
+        <p id="scoreDisplay" style="font-size: 24px; font-weight: bold;"></p>
+        <button onclick="location.reload()">Back to Home</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+        authDomain: "assessment-launcher439.firebaseapp.com",
+        projectId: "assessment-launcher439",
+        storageBucket: "assessment-launcher439.firebasestorage.app",
+        messagingSenderId: "654911094206",
+        appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let allTests = [];
+    let currentTest = null;
+
+    // Load available tests from Firestore
+    async function loadAvailableTests() {
+        const selector = document.getElementById('testSelector');
+        try {
+            const querySnapshot = await getDocs(collection(db, "tests"));
+            selector.innerHTML = '<option value="">-- Choose a Test --</option>';
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                allTests.push({ id: doc.id, ...data });
+                let opt = document.createElement('option');
+                opt.value = doc.id;
+                opt.innerText = data.testName;
+                selector.appendChild(opt);
+            });
+        } catch (e) {
+            console.error("Error loading tests:", e);
+        }
+    }
+
+    window.startTest = function() {
+        const name = document.getElementById('studentName').value;
+        const testId = document.getElementById('testSelector').value;
+
+        if (!name || !testId) return alert("Please enter your name and select a test.");
+
+        currentTest = allTests.find(t => t.id === testId);
+        
+        document.getElementById('selectionArea').classList.add('hidden');
+        document.getElementById('testArea').classList.remove('hidden');
+        document.getElementById('displayTestName').innerText = currentTest.testName;
+
+        const container = document.getElementById('questionContainer');
+        container.innerHTML = "";
+
+        currentTest.questions.forEach((q, index) => {
+            const qDiv = document.createElement('div');
+            qDiv.className = 'question-card';
+            qDiv.innerHTML = `
+                <p><strong>Q${index + 1}: ${q.q}</strong></p>
+                <label class="option"><input type="radio" name="q${index}" value="A"> A) ${q.a}</label>
+                <label class="option"><input type="radio" name="q${index}" value="B"> B) ${q.b}</label>
+                <label class="option"><input type="radio" name="q${index}" value="C"> C) ${q.c}</label>
+                <label class="option"><input type="radio" name="q${index}" value="D"> D) ${q.d}</label>
+            `;
+            container.appendChild(qDiv);
+        });
+    };
+
+    window.calculateScore = async function() {
+        let score = 0;
+        const total = currentTest.questions.length;
+        const name = document.getElementById('studentName').value;
+
+        currentTest.questions.forEach((q, index) => {
+            const selected = document.querySelector(`input[name="q${index}"]:checked`);
+            if (selected && selected.value === q.correct) {
+                score++;
+            }
+        });
+
+        const percent = Math.round((score / total) * 100);
+
+        try {
+            // SAVE TO FIRESTORE "results" COLLECTION
+            await addDoc(collection(db, "results"), {
+                studentName: name,
+                testName: currentTest.testName,
+                score: score,
+                total: total,
+                percentage: percent,
+                completedAt: serverTimestamp()
+            });
+
+            document.getElementById('testArea').classList.add('hidden');
+            document.getElementById('resultArea').classList.remove('hidden');
+            document.getElementById('scoreDisplay').innerText = `You scored ${score} out of ${total} (${percent}%)`;
+
+        } catch (e) {
+            console.error("Submission error:", e);
+            alert("Error submitting results. Tell your teacher.");
+        }
+    };
+
+    // Initialize
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            loadAvailableTests();
+        } else {
+            alert("Please log in to take the assessment.");
+            // Optional: window.location.href = "login.html";
+        }
+    });
+</script>
+
+</body>
+</html>
