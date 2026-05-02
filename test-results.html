@@ -136,12 +136,24 @@ window.deleteResult = async function(id) {
 };
 
 // START
-if (testId) {
-    fetchResults();
-} else {
-    alert("No test ID");
-    window.location.href = "teacher-logged-in.html";
-}
+onAuthStateChanged(auth, (user) => {
+
+    console.log("AUTH STATE:", user);
+
+    if (!user) {
+        alert("Not logged in");
+        window.location.href = "teacher.html";
+        return;
+    }
+
+    // ONLY run after login is confirmed
+    if (testId) {
+        fetchResults();
+    } else {
+        alert("No Test ID provided.");
+        window.location.href = "teacher-logged-in.html";
+    }
+});
 </script>
 
 </body>
