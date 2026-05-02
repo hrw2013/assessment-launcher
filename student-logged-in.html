@@ -2,19 +2,17 @@
 <html>
 <head>
     <title>Student Dashboard</title>
-      <style> body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; } .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); } .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; } .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; } .option:hover { background: #f0f7ff; border-color: #1a73e8; } input[type="radio"] { margin-right: 10px; transform: scale(1.2); } .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; } .loading { font-style: italic; color: #666; } </style>
+     <style> body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; } .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); } .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; } .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; } .option:hover { background: #f0f7ff; border-color: #1a73e8; } input[type="radio"] { margin-right: 10px; transform: scale(1.2); } .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; } .loading { font-style: italic; color: #666; } </style>
     </style>
 
 
 </head>
-
 <body>
 
 <div class="container">
     <h2>Student Dashboard</h2>
-
     <div id="dash">
-        <p id="loadingText" class="loading">Loading assessments...</p>
+        <p id="loadingText">Loading assessments...</p>
     </div>
 </div>
 
@@ -36,57 +34,75 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 🔒 AUTH CHECK
+//  AUTH
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        loadTests();
+        loadTests(user.uid);
     } else {
         window.location.href = "student.html";
     }
 });
 
-// 📥 LOAD TESTS
-async function loadTests() {
-    try {
-        console.log("Loading tests...");
+// LOAD CLASS-BASED TESTS
+async function loadTests(userId) {
+    const dash = document.getElementById("dash");
+    const loading = document.getElementById("loadingText");
 
-        const dash = document.getElementById("dash");
-        const loading = document.getElementById("loadingText");
+    const testsSnap = await getDocs(collection(db, "tests"));
+    const classesSnap = await getDocs(collection(db, "classes"));
+    const resultsSnap = await getDocs(collection(db, "results"));
 
-        const snap = await getDocs(collection(db, "tests"));
+    if (loading) loading.remove();
+    dash.innerHTML = "";
 
-        // remove loading text
-        if (loading) loading.remove();
+    // find student's classes
+    let studentClasses = [];
 
-        dash.innerHTML = "";
-
-        if (snap.empty) {
-            dash.innerHTML = "<p>No tests available.</p>";
-            return;
+    classesSnap.forEach(c => {
+        const data = c.data();
+        if (data.students?.includes(userId)) {
+            studentClasses.push(c.id);
         }
+    });
 
-        snap.forEach(docSnap => {
-            const test = docSnap.data();
+    testsSnap.forEach(testDoc => {
+        const test = testDoc.data();
 
-            const div = document.createElement("div");
-            div.className = "test-card";
+        // only show tests for student's class
+        if (!studentClasses.includes(test.classId)) return;
 
-            div.innerHTML = `
-                <b>${test.testName}</b><br>
-                <small>${test.questions.length} questions</small><br>
-                <button onclick="openTest('${docSnap.id}')">Take Test</button>
-            `;
+        // check if completed
+        let result = null;
 
-            dash.appendChild(div);
+        resultsSnap.forEach(r => {
+            const d = r.data();
+            if (d.testId === testDoc.id && d.studentId === userId) {
+                result = d;
+            }
         });
 
-    } catch (e) {
-        console.error("Firestore error:", e);
-        alert(e.message);
-    }
+        const div = document.createElement("div");
+        div.className = "test-card";
+
+        div.innerHTML = `
+            <b>${test.testName}</b><br>
+        `;
+
+        if (result) {
+            div.innerHTML += `
+                <p style="color:green;">✔ Completed</p>
+                <p>${result.score}/${result.total} (${result.percentage}%)</p>
+            `;
+        } else {
+            div.innerHTML += `
+                <button onclick="openTest('${testDoc.id}')">Take Test</button>
+            `;
+        }
+
+        dash.appendChild(div);
+    });
 }
 
-// 🌐 OPEN TEST IN NEW TAB
 window.openTest = function(id) {
     window.open(`student-assessment.html?id=${id}`, "_blank");
 };
