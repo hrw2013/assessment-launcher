@@ -11,37 +11,42 @@
         .back-btn { float: left; padding: 10px; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 4px; }
     </style>
 </head>
+
 <body>
 
 <div class="container">
-    <button class="back-btn" onclick="window.location.href='teacher-logged-in.html'">← Back to Dashboard</button>
+    <button class="back-btn" onclick="window.location.href='teacher-logged-in.html'">
+        ← Back to Dashboard
+    </button>
+
     <h1 id="headerTitle">Results</h1>
-    
+
     <table>
         <thead>
-           <tr>
-    <th>Student Name</th>
-    <th>Score</th>
-    <th>Percentage</th>
-    <th>Date Completed</th>
-    <th>Actions</th>
-</tr>
+            <tr>
+                <th>Student Name</th>
+                <th>Score</th>
+                <th>Percentage</th>
+                <th>Date Completed</th>
+                <th>Actions</th>
+            </tr>
         </thead>
+
         <tbody id="resultsBody"></tbody>
     </table>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { 
     getFirestore, 
     collection, 
     getDocs, 
     query, 
-    where, 
-    doc, 
-    getDoc 
+    where,
+    doc,
+    getDoc,
+    deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -54,47 +59,13 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Get test ID from URL
+// Get test ID
 const urlParams = new URLSearchParams(window.location.search);
 const testId = urlParams.get('id');
 
-// 🔒 AUTH + ROLE CHECK
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        alert("Not logged in.");
-        window.location.href = "teacher.html";
-        return;
-    }
-
-    try {
-        // Check role in Firestore
-        const userRef = doc(db, "users", user.uid);
-        const snap = await getDoc(userRef);
-
-        if (!snap.exists() || snap.data().role !== "teacher") {
-            alert("Access denied.");
-            window.location.href = "student.html";
-            return;
-        }
-
-        // Only run query AFTER verification
-        if (testId) {
-            fetchResults();
-        } else {
-            alert("No Test ID provided.");
-            window.location.href = 'teacher-logged-in.html';
-        }
-
-    } catch (error) {
-        console.error("Auth/Role error:", error);
-        alert("Permission error: " + error.message);
-    }
-});
-
-// 📊 FETCH RESULTS
+// 📊 LOAD RESULTS
 async function fetchResults() {
     const body = document.getElementById('resultsBody');
     const header = document.getElementById('headerTitle');
@@ -106,7 +77,7 @@ async function fetchResults() {
         if (snap.empty) {
             body.innerHTML = `
                 <tr>
-                    <td colspan="4" style="text-align:center; padding:20px;">
+                    <td colspan="5" style="text-align:center; padding:20px;">
                         No results found.<br>
                         <small>(Test ID: ${testId})</small>
                     </td>
@@ -129,24 +100,29 @@ async function fetchResults() {
                 header.innerText = "Results for: " + data.testName;
             }
 
-           row.innerHTML = `
-    <td>${data.studentName || 'Unknown Student'}</td>
-    <td>${data.score} / ${data.total}</td>
-    <td>${data.percentage}%</td>
-    <td>${dateStr}</td>
-    <td>
-        <button onclick="deleteResult('${doc.id}')"
-            style="background:red;color:white;border:none;padding:6px 10px;cursor:pointer;">
-            Delete
-        </button>
-    </td>
-;
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td>${data.studentName || 'Unknown Student'}</td>
+                <td>${data.score} / ${data.total}</td>
+                <td>${data.percentage}%</td>
+                <td>${dateStr}</td>
+                <td>
+                    <button onclick="deleteResult('${docSnap.id}')"
+                        style="background:red;color:white;border:none;padding:6px 10px;cursor:pointer;">
+                        Delete
+                    </button>
+                </td>
+            `;
+
+            body.appendChild(row);
+        });
 
     } catch (error) {
         console.error("Fetch error:", error);
         body.innerHTML = `
             <tr>
-                <td colspan="4" style="color:red;">
+                <td colspan="5" style="color:red;">
                     Error: ${error.message}
                 </td>
             </tr>
@@ -154,7 +130,8 @@ async function fetchResults() {
     }
 }
 
-    window.deleteResult = async function(resultId) {
+// 🗑 DELETE RESULT
+window.deleteResult = async function(resultId) {
     if (!confirm("Delete this student response? This cannot be undone.")) return;
 
     try {
@@ -164,6 +141,14 @@ async function fetchResults() {
         alert("Error deleting response: " + e.message);
     }
 };
+
+// START
+if (testId) {
+    fetchResults();
+} else {
+    alert("No Test ID provided.");
+    window.location.href = "teacher-logged-in.html";
+}
 </script>
 
 </body>
