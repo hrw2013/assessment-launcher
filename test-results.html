@@ -159,6 +159,24 @@ onAuthStateChanged(auth, (user) => {
         window.location.href = "teacher-logged-in.html";
     }
 });
+
+    const scores = [];
+let totalStudents = 0;
+
+snap.forEach(docSnap => {
+    const data = docSnap.data();
+    scores.push(data.percentage);
+    totalStudents++;
+});
+
+const avg = scores.reduce((a,b) => a+b, 0) / scores.length;
+
+header.innerHTML += `
+    <br><small>
+        Students: ${totalStudents} | Avg: ${avg.toFixed(1)}%
+    </small>
+`;
+    
 </script>
 
 </body>
