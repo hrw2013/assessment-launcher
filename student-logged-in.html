@@ -132,34 +132,30 @@ else {
 // 🚀 OPEN TEST
 window.openTest = async function(id) {
 
-    // Get test data
     const testDoc = await getDoc(doc(db, "tests", id));
     const testData = testDoc.data();
 
-    // If lockOnOpen is enabled → check if already opened
     if (testData.lockOnOpen) {
 
         const q = query(
             collection(db, "openedTests"),
             where("testId", "==", id),
-            where("studentEmail", "==", currentUserEmail)
+            where("studentName", "==", currentUserEmail)
         );
 
         const snap = await getDocs(q);
 
         if (!snap.empty) {
-            alert("You already opened this test. You cannot open it again.");
+            alert("You already opened this test.");
             return;
         }
 
-        // Save that it has been opened
         await addDoc(collection(db, "openedTests"), {
             testId: id,
-            studentEmail: currentUserEmail
+            studentName: currentUserEmail
         });
     }
 
-    // Open test
     window.open(`student-assessment.html?id=${id}`, "_blank");
 };
 </script>
