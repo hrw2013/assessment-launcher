@@ -92,7 +92,7 @@ async function loadTests() {
                 div.innerHTML = `
                     <h3>${data.testName}</h3>
                     <p class="completed">
-                        Completed ✅<br>
+                        Completed<br>
                         Score: ${result.score}/${result.total} (${result.percentage}%)
                     </p>
                 `;
@@ -101,7 +101,7 @@ async function loadTests() {
             else {
                 div.innerHTML = `
                     <h3>${data.testName}</h3>
-                    <p class="notdone">Not Taken ❌</p>
+                    <p class="notdone">Not Taken</p>
                     <button onclick="openTest('${docSnap.id}')">
                         Take Test
                     </button>
