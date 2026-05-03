@@ -38,7 +38,43 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    
+const draftRef = doc(db, "testDrafts", testId + "_" + studentEmail);
+const draftSnap = await getDoc(draftRef);
 
+let draft = {};
+
+if (draftSnap.exists()) {
+    draft = draftSnap.data().answers || {};
+}
+
+    setTimeout(() => {
+    Object.keys(draft).forEach(key => {
+        const input = document.querySelector(
+            `input[name="${key}"][value="${draft[key]}"]`
+        );
+        if (input) input.checked = true;
+    });
+}, 200);
+
+    setInterval(async () => {
+    const answers = {};
+
+    currentTest.questions.forEach((q, i) => {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected) answers[`q${i}`] = selected.value;
+    });
+
+    await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
+        testId,
+        studentEmail,
+        answers,
+        updatedAt: serverTimestamp()
+    });
+
+}, 5000);
+
+    
     // 1. Grab the ID from the URL (e.g., ?id=ABC123XYZ)
     const urlParams = new URLSearchParams(window.location.search);
     const testId = urlParams.get('id');
@@ -67,7 +103,13 @@
             document.getElementById('testContent').innerHTML = "Assessment not found.";
         }
     }
-
+await setDoc(doc(db, "inProgressTests", testId + "_" + studentEmail), {
+    testId,
+    studentEmail,
+    status: "in-progress",
+    startedAt: serverTimestamp()
+});
+    
     function renderTest() {
         let html = `<h1>${currentTest.testName}</h1>`;
         
@@ -96,6 +138,10 @@
         if (selected && selected.value === q.correct) score++;
     });
 
+       await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
+    cleared: true
+});
+       
        window.goBack = function() {
     window.close();
 
@@ -127,6 +173,13 @@
         alert("Error submitting: " + e.message);
     }
 };
+
+    document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        alert("Warning: Tab switching detected.");
+    }
+});
+    
 </script>
 
 </body>
