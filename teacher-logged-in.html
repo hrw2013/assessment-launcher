@@ -29,7 +29,10 @@
         <h2>Create Assessment</h2>
 
         <input id="testName" placeholder="Test Name">
-
+<label>
+    <input type="checkbox" id="lockOnOpen">
+    Lock test after opening (one attempt only)
+</label>
         <!-- CLASS SELECT -->
         <select id="classSelect">
             <option value="">Select Class</option>
@@ -173,13 +176,15 @@ window.saveTest = async function() {
     };
 });
 
-    await addDoc(collection(db, "tests"), {
-        testName: name,
-        classId: classId,
-        questions: questions,
-        teacherId: auth.currentUser.uid,
-        createdAt: serverTimestamp()
-    });
+   const lockOnOpen = document.getElementById("lockOnOpen").checked;
+
+await addDoc(collection(db, "tests"), {
+    testName: name,
+    questions: questions,
+    teacherId: auth.currentUser.uid,
+    createdAt: serverTimestamp(),
+    lockOnOpen: lockOnOpen
+});
 
     alert("Test saved!");
     location.reload();
