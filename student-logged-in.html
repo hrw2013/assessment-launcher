@@ -158,6 +158,27 @@ window.openTest = async function(id) {
 
     window.open(`student-assessment.html?id=${id}`, "_blank");
 };
+
+  if (result) {
+    // completed
+} else if (progressMap[key] === "in-progress") {
+    div.innerHTML = `
+        <h3>${data.testName}</h3>
+        <p>⏳ In Progress</p>
+        <button onclick="openTest('${docSnap.id}')">
+            Resume Test
+        </button>
+    `;
+} else {
+    div.innerHTML = `
+        <h3>${data.testName}</h3>
+        <p>❌ Not Taken</p>
+        <button onclick="openTest('${docSnap.id}')">
+            Start Test
+        </button>
+    `;
+}
+  
 </script>
 
 </body>
