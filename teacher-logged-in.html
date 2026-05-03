@@ -29,11 +29,7 @@
         <h2>Create Assessment</h2>
 
         <input id="testName" placeholder="Test Name">
-<label>
-    <input type="checkbox" id="lockOnOpen">
-    Lock test after opening (one attempt only)
-</label>
-        <br>
+
         <!-- CLASS SELECT -->
         <select id="classSelect">
             <option value="">Select Class</option>
@@ -45,7 +41,12 @@
         <button class="btn-add" onclick="addQuestion()">+ Add Question</button>
         <button class="btn-save" onclick="saveTest()">Save Test</button>
     </div>
-
+     <br>
+<label>
+    <input type="checkbox" id="lockOnOpen">
+    Lock test after opening (one attempt only)
+</label>
+       
     <!-- TEST LIST -->
     <div class="section">
         <h2>Saved Tests</h2>
