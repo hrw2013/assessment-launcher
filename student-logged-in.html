@@ -1,20 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Student Dashboard</title>
-     <style> body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; } .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); } .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; } .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; } .option:hover { background: #f0f7ff; border-color: #1a73e8; } input[type="radio"] { margin-right: 10px; transform: scale(1.2); } .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; } .loading { font-style: italic; color: #666; } </style>
+<title>Student Dashboard</title>
+
+  <style> body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; } .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); } .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; } .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; } .option:hover { background: #f0f7ff; border-color: #1a73e8; } input[type="radio"] { margin-right: 10px; transform: scale(1.2); } .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; } .loading { font-style: italic; color: #666; } </style>
     </style>
 
 
 </head>
+
 <body>
 
-<div class="container">
-    <h2>Student Dashboard</h2>
-    <div id="dash">
-        <p id="loadingText">Loading assessments...</p>
-    </div>
-</div>
+<h1>Student Dashboard</h1>
+
+<div id="testList">Loading assessments...</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -34,16 +33,18 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-//  AUTH
+// 🔐 AUTH CHECK
 onAuthStateChanged(auth, (user) => {
-    if (user) {
-        loadTests(user.uid);
-    } else {
-        window.location.href = "student.html";
+    if (!user) {
+        window.location.href = "login.html";
+        return;
     }
+
+    console.log("Student logged in:", user.email);
+    loadTests();
 });
 
-// LOAD CLASS-BASED TESTS
+// 📥 LOAD TESTS
 async function loadTests() {
     const container = document.getElementById("testList");
 
@@ -68,14 +69,13 @@ async function loadTests() {
             const data = docSnap.data();
 
             const div = document.createElement("div");
+            div.className = "card";
 
             div.innerHTML = `
-                <div style="margin:10px;padding:15px;border:1px solid #ddd;border-radius:8px;">
-                    <strong>${data.testName}</strong><br><br>
-                    <button onclick="openTest('${docSnap.id}')">
-                        Open Test
-                    </button>
-                </div>
+                <h3>${data.testName}</h3>
+                <button onclick="openTest('${docSnap.id}')">
+                    Open Test
+                </button>
             `;
 
             container.appendChild(div);
@@ -87,53 +87,7 @@ async function loadTests() {
     }
 }
 
-    // find student's classes
-    let studentClasses = [];
-
-    classesSnap.forEach(c => {
-        const data = c.data();
-        if (data.students?.includes(userId)) {
-            studentClasses.push(c.id);
-        }
-    });
-
-    testsSnap.forEach(testDoc => {
-        const test = testDoc.data();
-
-        // only show tests for student's class
-        if (!studentClasses.includes(test.classId)) return;
-
-        // check if completed
-        let result = null;
-
-        resultsSnap.forEach(r => {
-            const d = r.data();
-            if (d.testId === testDoc.id && d.studentId === userId) {
-                result = d;
-            }
-        });
-
-        const div = document.createElement("div");
-        div.className = "test-card";
-
-        div.innerHTML = `
-            <b>${test.testName}</b><br>
-        `;
-
-        if (result) {
-            div.innerHTML += `
-                <p style="color:green;">✔ Completed</p>
-                <p>${result.score}/${result.total} (${result.percentage}%)</p>
-            `;
-        } else {
-            div.innerHTML += `
-                <button onclick="openTest('${testDoc.id}')">Take Test</button>
-            `;
-        }
-
-        dash.appendChild(div);
-    });
-
+// 🚀 OPEN TEST (NEW TAB)
 window.openTest = function(id) {
     window.open(`student-assessment.html?id=${id}`, "_blank");
 };
