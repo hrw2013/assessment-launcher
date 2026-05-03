@@ -44,16 +44,48 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // LOAD CLASS-BASED TESTS
-async function loadTests(userId) {
-    const dash = document.getElementById("dash");
-    const loading = document.getElementById("loadingText");
+async function loadTests() {
+    const container = document.getElementById("testList");
 
-    const testsSnap = await getDocs(collection(db, "tests"));
-    const classesSnap = await getDocs(collection(db, "classes"));
-    const resultsSnap = await getDocs(collection(db, "results"));
+    if (!container) {
+        console.error("testList element missing");
+        return;
+    }
 
-    if (loading) loading.remove();
-    dash.innerHTML = "";
+    try {
+        container.innerHTML = "Loading assessments...";
+
+        const snap = await getDocs(collection(db, "tests"));
+
+        if (snap.empty) {
+            container.innerHTML = "No assessments available.";
+            return;
+        }
+
+        container.innerHTML = "";
+
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+
+            const div = document.createElement("div");
+
+            div.innerHTML = `
+                <div style="margin:10px;padding:15px;border:1px solid #ddd;border-radius:8px;">
+                    <strong>${data.testName}</strong><br><br>
+                    <button onclick="openTest('${docSnap.id}')">
+                        Open Test
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(div);
+        });
+
+    } catch (e) {
+        console.error("FULL ERROR:", e);
+        container.innerHTML = "Error connecting to database.";
+    }
+}
 
     // find student's classes
     let studentClasses = [];
