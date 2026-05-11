@@ -21,7 +21,10 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 import { 
     getFirestore, 
     collection, 
-    getDocs, 
+  doc,
+  setDoc,
+  serverTimestamp,
+    getDoc, 
     query, 
     where 
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
