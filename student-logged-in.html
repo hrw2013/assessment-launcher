@@ -130,54 +130,67 @@ else {
 }
 
 // 🚀 OPEN TEST
-window.openTest = async function(id) {
+window.openTest = async function(testId) {
 
-    const testDoc = await getDoc(doc(db, "tests", id));
-    const testData = testDoc.data();
+    try {
 
-    if (testData.lockOnOpen) {
+        const testRef = doc(db, "tests", testId);
+        const testSnap = await getDoc(testRef);
 
-        const q = query(
-            collection(db, "openedTests"),
-            where("testId", "==", id),
-            where("studentName", "==", currentUserEmail)
-        );
-
-        const snap = await getDocs(q);
-
-        if (!snap.empty) {
-            alert("You already opened this test.");
+        if (!testSnap.exists()) {
+            alert("Test not found.");
             return;
         }
 
-        await addDoc(collection(db, "openedTests"), {
-            testId: id,
-            studentName: currentUserEmail
-        });
+        const testData = testSnap.data();
+
+        // =========================
+        // LOCK CHECK
+        // =========================
+
+        if (testData.lockOnOpen === true) {
+
+            const openedId = testId + "_" + currentUserEmail;
+
+            const openedRef = doc(db, "openedTests", openedId);
+
+            const openedSnap = await getDoc(openedRef);
+
+            // Already opened before
+            if (openedSnap.exists()) {
+
+                alert("This assessment can only be opened once.");
+
+                return;
+            }
+
+            // First open → save record
+            await setDoc(openedRef, {
+                testId: testId,
+                studentEmail: currentUserEmail,
+                openedAt: serverTimestamp()
+            });
+
+        }
+
+        // =========================
+        // OPEN TEST
+        // =========================
+
+        window.open(
+            `student-assessment.html?id=${testId}`,
+            "_blank"
+        );
+
+    } catch (e) {
+
+        console.error("OPEN TEST ERROR:", e);
+
+        alert(e.message);
+
     }
 
-    window.open(`student-assessment.html?id=${id}`, "_blank");
 };
-
-  if (result) {
-    // completed
-} else if (progressMap[key] === "in-progress") {
-    div.innerHTML = `
-        <h3>${data.testName}</h3>
-        <p>⏳ In Progress</p>
-        <button onclick="openTest('${docSnap.id}')">
-            Resume Test
-        </button>
-    `;
-} else {
-    div.innerHTML = `
-        <h3>${data.testName}</h3>
-        <p>❌ Not Taken</p>
-        <button onclick="openTest('${docSnap.id}')">
-            Start Test
-        </button>
-    `;
-}
   
 </script>
 
