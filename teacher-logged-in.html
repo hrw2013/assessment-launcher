@@ -189,7 +189,7 @@ await addDoc(collection(db, "tests"), {
     questions: questions,
     teacherId: auth.currentUser.uid,
     createdAt: serverTimestamp(),
-    lockOnOpen: lockOnOpen
+  lockOnOpen: document.getElementById("lockOnOpen").checked
 });
 
     alert("Test saved!");
