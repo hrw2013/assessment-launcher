@@ -22,165 +22,340 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-        authDomain: "assessment-launcher439.firebaseapp.com",
-        projectId: "assessment-launcher439",
-        storageBucket: "assessment-launcher439.firebasestorage.app",
-        messagingSenderId: "654911094206",
-        appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-    };
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    
-const draftRef = doc(db, "testDrafts", testId + "_" + studentEmail);
-const draftSnap = await getDoc(draftRef);
+import {
+    getAuth,
+    onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-let draft = {};
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    addDoc,
+    collection,
+    serverTimestamp,
+    setDoc
+}
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-if (draftSnap.exists()) {
-    draft = draftSnap.data().answers || {};
+const firebaseConfig = {
+    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+    authDomain: "assessment-launcher439.firebaseapp.com",
+    projectId: "assessment-launcher439",
+    storageBucket: "assessment-launcher439.firebasestorage.app",
+    messagingSenderId: "654911094206",
+    appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+const testId = urlParams.get("id");
+
+let currentTest = null;
+let studentEmail = "";
+let savedAnswers = {};
+
+// =========================
+// AUTH
+// =========================
+
+onAuthStateChanged(auth, async (user) => {
+
+    if (!user) {
+        window.location.href = "student.html";
+        return;
+    }
+
+    studentEmail = user.email;
+
+    if (!testId) {
+        document.getElementById("testContent").innerHTML =
+            "<h2>No test ID provided.</h2>";
+        return;
+    }
+
+    await loadTest(testId);
+
+});
+
+// =========================
+// LOAD TEST
+// =========================
+
+async function loadTest(id) {
+
+    try {
+
+        const testRef = doc(db, "tests", id);
+        const testSnap = await getDoc(testRef);
+
+        if (!testSnap.exists()) {
+            document.getElementById("testContent").innerHTML =
+                "<h2>Assessment not found.</h2>";
+            return;
+        }
+
+        currentTest = testSnap.data();
+
+        // =========================
+        // MARK IN PROGRESS
+        // =========================
+
+        await setDoc(
+            doc(db, "inProgressTests", id + "_" + studentEmail),
+            {
+                testId: id,
+                studentEmail: studentEmail,
+                status: "in-progress",
+                startedAt: serverTimestamp()
+            }
+        );
+
+        // =========================
+        // LOAD SAVED DRAFT
+        // =========================
+
+        const draftRef = doc(
+            db,
+            "testDrafts",
+            id + "_" + studentEmail
+        );
+
+        const draftSnap = await getDoc(draftRef);
+
+        if (draftSnap.exists()) {
+            savedAnswers = draftSnap.data().answers || {};
+        }
+
+        renderTest();
+
+        // =========================
+        // RESTORE ANSWERS
+        // =========================
+
+        setTimeout(() => {
+
+            Object.keys(savedAnswers).forEach((key) => {
+
+                const value = savedAnswers[key];
+
+                const input = document.querySelector(
+                    `input[name="${key}"][value="${value}"]`
+                );
+
+                if (input) {
+                    input.checked = true;
+                }
+
+            });
+
+        }, 200);
+
+    } catch (e) {
+
+        console.error("LOAD TEST ERROR:", e);
+
+        document.getElementById("testContent").innerHTML =
+            "<h2>Error loading assessment.</h2>";
+
+    }
+
 }
 
-    setTimeout(() => {
-    Object.keys(draft).forEach(key => {
-        const input = document.querySelector(
-            `input[name="${key}"][value="${draft[key]}"]`
-        );
-        if (input) input.checked = true;
-    });
-}, 200);
+// =========================
+// RENDER TEST
+// =========================
 
-    setInterval(async () => {
+function renderTest() {
+
+    let html = `
+        <h1>${currentTest.testName}</h1>
+    `;
+
+    currentTest.questions.forEach((q, i) => {
+
+        html += `
+            <div class="q-block">
+
+                <p>
+                    <strong>${i + 1}. ${q.q}</strong>
+                </p>
+
+                <label class="option">
+                    <input type="radio" name="q${i}" value="A">
+                    ${q.a}
+                </label>
+
+                <label class="option">
+                    <input type="radio" name="q${i}" value="B">
+                    ${q.b}
+                </label>
+
+                <label class="option">
+                    <input type="radio" name="q${i}" value="C">
+                    ${q.c}
+                </label>
+
+                <label class="option">
+                    <input type="radio" name="q${i}" value="D">
+                    ${q.d}
+                </label>
+
+            </div>
+        `;
+
+    });
+
+    html += `
+        <button class="btn-submit" onclick="submitTest()">
+            Finish & Submit
+        </button>
+    `;
+
+    document.getElementById("testContent").innerHTML = html;
+
+}
+
+// =========================
+// AUTO SAVE
+// =========================
+
+setInterval(async () => {
+
+    if (!currentTest || !studentEmail) return;
+
     const answers = {};
 
     currentTest.questions.forEach((q, i) => {
-        const selected = document.querySelector(`input[name="q${i}"]:checked`);
-        if (selected) answers[`q${i}`] = selected.value;
+
+        const selected =
+            document.querySelector(`input[name="q${i}"]:checked`);
+
+        if (selected) {
+            answers[`q${i}`] = selected.value;
+        }
+
     });
 
-    await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
-        testId,
-        studentEmail,
-        answers,
-        updatedAt: serverTimestamp()
-    });
+    try {
+
+        await setDoc(
+            doc(db, "testDrafts", testId + "_" + studentEmail),
+            {
+                testId: testId,
+                studentEmail: studentEmail,
+                answers: answers,
+                updatedAt: serverTimestamp()
+            }
+        );
+
+    } catch (e) {
+
+        console.error("AUTOSAVE ERROR:", e);
+
+    }
 
 }, 5000);
 
-    
-    // 1. Grab the ID from the URL (e.g., ?id=ABC123XYZ)
-    const urlParams = new URLSearchParams(window.location.search);
-    const testId = urlParams.get('id');
+// =========================
+// SUBMIT TEST
+// =========================
 
-    let currentTest = null;
-    let studentEmail = "";
+window.submitTest = async function () {
 
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            studentEmail = user.email; // We'll save this with the result
-            if (testId) loadTest(testId);
-            else document.getElementById('testContent').innerHTML = "No Test ID found.";
-        } else {
-            window.location.href = "login.html";
-        }
-    });
-
-    async function loadTest(id) {
-        const docRef = doc(db, "tests", id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            currentTest = docSnap.data();
-            renderTest();
-        } else {
-            document.getElementById('testContent').innerHTML = "Assessment not found.";
-        }
-    }
-await setDoc(doc(db, "inProgressTests", testId + "_" + studentEmail), {
-    testId,
-    studentEmail,
-    status: "in-progress",
-    startedAt: serverTimestamp()
-});
-    
-    function renderTest() {
-        let html = `<h1>${currentTest.testName}</h1>`;
-        
-        currentTest.questions.forEach((q, i) => {
-            html += `
-                <div class="q-block">
-                    <p><strong>${i+1}. ${q.q}</strong></p>
-                    <label class="option"><input type="radio" name="q${i}" value="A"> ${q.a}</label>
-                    <label class="option"><input type="radio" name="q${i}" value="B"> ${q.b}</label>
-                    <label class="option"><input type="radio" name="q${i}" value="C"> ${q.c}</label>
-                    <label class="option"><input type="radio" name="q${i}" value="D"> ${q.d}</label>
-                </div>
-            `;
-        });
-
-        html += `<button class="btn-submit" onclick="submitTest()">Finish & Submit</button>`;
-        document.getElementById('testContent').innerHTML = html;
-    }
-
-   window.submitTest = async function() {
     let score = 0;
     const total = currentTest.questions.length;
 
     currentTest.questions.forEach((q, i) => {
-        const selected = document.querySelector(`input[name="q${i}"]:checked`);
-        if (selected && selected.value === q.correct) score++;
+
+        const selected =
+            document.querySelector(`input[name="q${i}"]:checked`);
+
+        if (selected && selected.value === q.correct) {
+            score++;
+        }
+
     });
 
-       await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
-    cleared: true
-});
-       
-       window.goBack = function() {
-    window.close();
-
-    // fallback (in case browser blocks close)
-    setTimeout(() => {
-        window.location.href = "student-logged-in.html";
-    }, 300);
-};
-       
     try {
-       await addDoc(collection(db, "results"), {
-    testId: testId,
-    studentId: auth.currentUser.uid,
-    studentName: studentEmail,
-    score: score,
-    total: total,
-    percentage: Math.round((score / total) * 100),
-    completedAt: serverTimestamp()
-});
 
-        // ✅ Show result + button
-        document.getElementById('testContent').innerHTML = `
+        // SAVE RESULT
+
+        await addDoc(collection(db, "results"), {
+
+            testId: testId,
+            testName: currentTest.testName,
+            studentName: studentEmail,
+            score: score,
+            total: total,
+            percentage: Math.round((score / total) * 100),
+            completedAt: serverTimestamp()
+
+        });
+
+        // MARK COMPLETE
+
+        await setDoc(
+            doc(db, "inProgressTests", testId + "_" + studentEmail),
+            {
+                testId: testId,
+                studentEmail: studentEmail,
+                status: "completed",
+                completedAt: serverTimestamp()
+            }
+        );
+
+        // CLEAR DRAFT
+
+        await setDoc(
+            doc(db, "testDrafts", testId + "_" + studentEmail),
+            {
+                cleared: true
+            }
+        );
+
+        document.getElementById("testContent").innerHTML = `
             <h2>Submitted!</h2>
-            <p>You scored ${score} out of ${total}.</p>
-            <button onclick="goBack()">Back to Dashboard</button>
+
+            <p>
+                You scored ${score} out of ${total}.
+            </p>
+
+            <button onclick="window.close()">
+                Return to Dashboard
+            </button>
         `;
 
     } catch (e) {
+
+        console.error("SUBMIT ERROR:", e);
+
         alert("Error submitting: " + e.message);
+
     }
+
 };
 
-    document.addEventListener("visibilitychange", () => {
+// =========================
+// TAB SWITCH WARNING
+// =========================
+
+document.addEventListener("visibilitychange", () => {
+
     if (document.hidden) {
         alert("Warning: Tab switching detected.");
     }
-});
-    
-</script>
 
+});
+
+</script>
 </body>
 </html>
