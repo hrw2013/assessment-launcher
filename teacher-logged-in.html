@@ -41,10 +41,21 @@
 
         <br>
 
-        <label>
-            <input type="checkbox" id="lockOnOpen">
-            Lock test after opening (one attempt only)
-        </label>
+      <label>Attempts Allowed:</label>
+<select id="attemptLimit">
+    <option value="1">1 Attempt</option>
+    <option value="2">2 Attempts</option>
+    <option value="3" selected>3 Attempts</option>
+    <option value="5">5 Attempts</option>
+    <option value="999">Unlimited</option>
+</select>
+
+<br><br>
+
+<label>
+    <input type="checkbox" id="antiCheat">
+    Enable Anti-Cheating Mode
+</label>
 
         <div id="questions"></div>
 
@@ -165,6 +176,8 @@ window.loadClasses = async function() {
 
 };
 
+                
+
 // ADD QUESTION
 window.addQuestion = function() {
 
@@ -199,60 +212,16 @@ window.addQuestion = function() {
 };
 
 // SAVE TEST
-window.saveTest = async function() {
+await addDoc(collection(db, "tests"), {
+    testName: name,
+    questions: questions,
+    teacherId: auth.currentUser.uid,
+    createdAt: serverTimestamp(),
 
-    const name = document.getElementById("testName").value.trim();
-
-    const classId = document.getElementById("classSelect").value;
-
-    // ONLY QUESTION CARDS
-    const cards = document.querySelectorAll("#questions .card");
-
-    if (!name || !classId) {
-        return alert("Fill in all fields");
-    }
-
-    const questions = Array.from(cards).map(c => {
-
-        const inputs = c.querySelectorAll("input");
-
-        return {
-            q: inputs[0]?.value || "",
-            a: inputs[1]?.value || "",
-            b: inputs[2]?.value || "",
-            c: inputs[3]?.value || "",
-            d: inputs[4]?.value || "",
-            correct: (inputs[5]?.value || "").toUpperCase().trim()
-        };
-
-    }).filter(q => q.q.trim() !== "");
-
-    if (questions.length === 0) {
-        return alert("Add at least one question");
-    }
-
-    await addDoc(collection(db, "tests"), {
-
-        testName: name,
-
-        classId: classId,
-
-        questions: questions,
-
-        teacherId: auth.currentUser.uid,
-
-        createdAt: serverTimestamp(),
-
-        lockOnOpen: document.getElementById("lockOnOpen").checked
-
-    });
-
-    alert("Test saved!");
-
-    location.reload();
-
-};
-
+    attemptLimit: parseInt(document.getElementById("attemptLimit").value),
+    antiCheat: document.getElementById("antiCheat").checked
+});
+    
 // LOAD TESTS
 window.loadTests = async function() {
 
