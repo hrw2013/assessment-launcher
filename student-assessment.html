@@ -108,22 +108,20 @@ async function loadTest(id) {
 
         currentTest = testSnap.data();
 
-        if (currentTest.antiCheat) {
+  const ac = currentTest.antiCheatSettings || {};
 
-    // TAB SWITCH DETECTION
+    // TAB SWITCH DETECTIONif (ac.tabSwitch) {
+
     document.addEventListener("visibilitychange", () => {
 
         if (document.hidden) {
 
-            console.warn("Tab switch detected");
-
-            // optional: log to Firestore
             setDoc(doc(
                 db,
                 "cheatLogs",
-                id + "_" + studentEmail + "_" + Date.now()
+                testId + "_" + studentEmail + "_tab_" + Date.now()
             ), {
-                testId: id,
+                testId,
                 studentEmail,
                 type: "tab-switch",
                 time: serverTimestamp()
@@ -132,6 +130,100 @@ async function loadTest(id) {
         }
 
     });
+
+}
+    // fullscreen lock
+
+    if (ac.fullscreen) {
+
+    const goFull = () => {
+
+        const el = document.documentElement;
+
+        if (el.requestFullscreen) {
+            el.requestFullscreen();
+        }
+
+    };
+
+    goFull();
+
+          document.addEventListener("fullscreenchange", () => {
+
+        if (!document.fullscreenElement) {
+            goFull();
+        }
+
+    });
+
+}
+
+        // copy paste block
+
+        
+if (ac.copyPaste) {
+
+    document.addEventListener("copy", (e) => {
+        e.preventDefault();
+        logCheat("copy attempt");
+    });
+
+    document.addEventListener("paste", (e) => {
+        e.preventDefault();
+        logCheat("paste attempt");
+    });
+
+}
+
+function logCheat(type) {
+
+    setDoc(doc(
+        db,
+        "cheatLogs",
+        testId + "_" + studentEmail + "_" + Date.now()
+    ), {
+        testId,
+        studentEmail,
+        type,
+        time: serverTimestamp()
+    });
+
+}
+
+    // right click disable
+
+    if (ac.disableRightClick) {
+
+    document.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+    });
+
+}
+
+    // focus loss
+
+    let focusLoss = 0;
+
+if (ac.focusLoss) {
+
+    window.addEventListener("blur", () => {
+
+        focusLoss++;
+
+        logCheat("focus lost");
+
+        if (focusLoss >= 3) {
+
+            alert("Too many focus losses. Submitting test.");
+
+            submitTest();
+
+        }
+
+    });
+
+}
+  
 
     // PAGE EXIT WARNING
     window.addEventListener("beforeunload", (e) => {
