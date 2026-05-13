@@ -28,7 +28,6 @@
 
     <h1>Teacher Dashboard</h1>
 
-   
     <!-- CREATE TEST -->
     <div class="section">
         <h2>Create Assessment</h2>
@@ -39,12 +38,14 @@
         <select id="classSelect">
             <option value="">Select Class</option>
         </select>
-  <br>
-<label>
-    <input type="checkbox" id="lockOnOpen"> Lock test after opening (one attempt only)
-</label>
-       
-    
+
+        <br>
+
+        <label>
+            <input type="checkbox" id="lockOnOpen">
+            Lock test after opening (one attempt only)
+        </label>
+
         <div id="questions"></div>
 
         <button class="btn-add" onclick="addQuestion()">+ Add Question</button>
@@ -59,17 +60,23 @@
 
 </div>
 
-     <!-- CREATE CLASS (simple version) -->
-    <div class="section">
-        <h2>Create Class</h2>
-        <input id="className" placeholder="Class Name (e.g. Biology Period 2)">
-        <button class="btn-add" onclick="createClass()">Create Class</button>
-    </div>
+<!-- CREATE CLASS -->
+<div class="section">
+    <h2>Create Class</h2>
+    <input id="className" placeholder="Class Name (e.g. Biology Period 2)">
+    <button class="btn-add" onclick="createClass()">Create Class</button>
+</div>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
 import { 
+    getAuth,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+import {
     getFirestore,
     collection,
     addDoc,
@@ -92,28 +99,31 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 🔒 AUTH CHECK
+// AUTH CHECK
 onAuthStateChanged(auth, (user) => {
+
     if (user) {
         loadTests();
         loadClasses();
     } else {
         window.location.href = "teacher.html";
     }
+
 });
 
-// Student view
-
-    window.openStudentView = function(testId) {
+// OPEN STUDENT VIEW
+window.openStudentView = function(testId) {
     window.open(`student-assessment.html?id=${testId}`, "_blank");
 };
 
-    
-// 📚 CREATE CLASS
+// CREATE CLASS
 window.createClass = async function() {
-    const name = document.getElementById("className").value;
 
-    if (!name) return alert("Enter class name");
+    const name = document.getElementById("className").value.trim();
+
+    if (!name) {
+        return alert("Enter class name");
+    }
 
     await addDoc(collection(db, "classes"), {
         className: name,
@@ -122,120 +132,183 @@ window.createClass = async function() {
     });
 
     alert("Class created!");
+
+    document.getElementById("className").value = "";
+
     loadClasses();
+
 };
 
-
-// 📥 LOAD CLASSES INTO DROPDOWN
+// LOAD CLASSES
 window.loadClasses = async function() {
+
     const snap = await getDocs(collection(db, "classes"));
+
     const select = document.getElementById("classSelect");
 
-    select.innerHTML = `<option value="">Select Class</option>`;
+    select.innerHTML = `
+        <option value="">Select Class</option>
+    `;
 
     snap.forEach(c => {
+
+        const data = c.data();
+
         const opt = document.createElement("option");
+
         opt.value = c.id;
-        opt.textContent = c.data().className;
+        opt.textContent = data.className;
+
         select.appendChild(opt);
+
     });
+
 };
 
-
-// ➕ ADD QUESTION
+// ADD QUESTION
 window.addQuestion = function() {
+
     const div = document.createElement("div");
+
     div.className = "card";
 
     div.innerHTML = `
         <input placeholder="Question">
-        <input placeholder="A">
-        <input placeholder="B">
-        <input placeholder="C">
-        <input placeholder="D">
-        <input placeholder="Correct (A/B/C/D)">
+
+        <input placeholder="Answer A">
+
+        <input placeholder="Answer B">
+
+        <input placeholder="Answer C">
+
+        <input placeholder="Answer D">
+
+        <input placeholder="Correct Answer (A/B/C/D)">
+
+        <button 
+            class="btn-delete"
+            style="margin-top:10px;"
+            onclick="this.parentElement.remove()"
+        >
+            Delete Question
+        </button>
     `;
 
     document.getElementById("questions").appendChild(div);
+
 };
 
-
-// 💾 SAVE TEST (WITH CLASS)
+// SAVE TEST
 window.saveTest = async function() {
-    const name = document.getElementById("testName").value;
+
+    const name = document.getElementById("testName").value.trim();
+
     const classId = document.getElementById("classSelect").value;
 
-    const cards = document.querySelectorAll(".card");
+    // ONLY QUESTION CARDS
+    const cards = document.querySelectorAll("#questions .card");
 
-    if (!name || !classId) return alert("Fill in all fields");
+    if (!name || !classId) {
+        return alert("Fill in all fields");
+    }
 
-   const questions = Array.from(cards).map(c => {
-    const inputs = c.querySelectorAll("input");
+    const questions = Array.from(cards).map(c => {
 
-    return {
-        q: inputs[0]?.value || "",
-        a: inputs[1]?.value || "",
-        b: inputs[2]?.value || "",
-        c: inputs[3]?.value || "",
-        d: inputs[4]?.value || "",
-        correct: (inputs[5]?.value || "").toUpperCase().trim()
-    };
-});
+        const inputs = c.querySelectorAll("input");
 
-   const lockOnOpen = document.getElementById("lockOnOpen").checked;
+        return {
+            q: inputs[0]?.value || "",
+            a: inputs[1]?.value || "",
+            b: inputs[2]?.value || "",
+            c: inputs[3]?.value || "",
+            d: inputs[4]?.value || "",
+            correct: (inputs[5]?.value || "").toUpperCase().trim()
+        };
 
-await addDoc(collection(db, "tests"), {
-    testName: name,
-    questions: questions,
-    teacherId: auth.currentUser.uid,
-    createdAt: serverTimestamp(),
-  lockOnOpen: document.getElementById("lockOnOpen").checked
-});
+    }).filter(q => q.q.trim() !== "");
+
+    if (questions.length === 0) {
+        return alert("Add at least one question");
+    }
+
+    await addDoc(collection(db, "tests"), {
+
+        testName: name,
+
+        classId: classId,
+
+        questions: questions,
+
+        teacherId: auth.currentUser.uid,
+
+        createdAt: serverTimestamp(),
+
+        lockOnOpen: document.getElementById("lockOnOpen").checked
+
+    });
 
     alert("Test saved!");
+
     location.reload();
+
 };
 
-
-// 📄 LOAD TESTS
+// LOAD TESTS
 window.loadTests = async function() {
+
     const list = document.getElementById("testList");
+
     const snap = await getDocs(collection(db, "tests"));
 
     list.innerHTML = "";
 
     snap.forEach(t => {
+
         const d = t.data();
 
         const div = document.createElement("div");
+
         div.className = "card";
 
-       div.innerHTML = `
-    <b>${d.testName}</b><br>
-    <small>Class ID: ${d.classId || "None"}</small><br><br>
+        div.innerHTML = `
+            <b>${d.testName}</b>
+            <br>
 
-    <button onclick="window.location.href='test-results.html?id=${t.id}'">
-        View Results
-    </button>
+            <small>
+                Class ID: ${d.classId || "None"}
+            </small>
 
-    <button onclick="openStudentView('${t.id}')">
-        Student View
-    </button>
+            <br><br>
 
-    <button class="btn-delete" onclick="deleteTest('${t.id}')">
-        Delete
-    </button>
-`;
+            <button onclick="window.location.href='test-results.html?id=${t.id}'">
+                View Results
+            </button>
+
+            <button onclick="openStudentView('${t.id}')">
+                Student View
+            </button>
+
+            <button 
+                class="btn-delete"
+                onclick="deleteTest('${t.id}')"
+            >
+                Delete
+            </button>
+        `;
 
         list.appendChild(div);
+
     });
+
 };
 
-
-// ❌ DELETE TEST
+// DELETE TEST
 window.deleteTest = async function(id) {
+
     await deleteDoc(doc(db, "tests", id));
+
     loadTests();
+
 };
 
 </script>
