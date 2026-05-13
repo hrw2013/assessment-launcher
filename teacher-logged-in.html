@@ -38,6 +38,16 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 
 <br><br>
 
+<h3>Strict Mode Options</h3>
+
+<label><input type="checkbox" id="ac_tabSwitch"> Log tab switching</label><br>
+<label><input type="checkbox" id="ac_fullscreen"> Force fullscreen</label><br>
+<label><input type="checkbox" id="ac_copyPaste"> Detect copy/paste</label><br>
+<label><input type="checkbox" id="ac_disableRightClick"> Disable right click</label><br>
+<label><input type="checkbox" id="ac_focusLoss"> Track focus loss / auto-submit</label><br>
+
+<br>
+
 <div id="questions"></div>
 
 <button class="btn-add" onclick="addQuestion()">+ Add Question</button>
@@ -88,6 +98,7 @@ const db = getFirestore(app);
 
 let currentUser = null;
 
+// AUTH SAFE
 onAuthStateChanged(auth, (user) => {
 
     if (!user) {
@@ -101,9 +112,7 @@ onAuthStateChanged(auth, (user) => {
 });
 
 
-// =========================
 // LOAD TESTS
-// =========================
 window.loadTests = async function () {
 
     const list = document.getElementById("testList");
@@ -136,13 +145,13 @@ window.loadTests = async function () {
         `;
 
         list.appendChild(div);
+
     });
+
 };
 
 
-// =========================
-// CREATE QUESTION
-// =========================
+// ADD QUESTION
 window.addQuestion = function () {
 
     const div = document.createElement("div");
@@ -158,12 +167,11 @@ window.addQuestion = function () {
     `;
 
     document.getElementById("questions").appendChild(div);
+
 };
 
 
-// =========================
-// SAVE TEST
-// =========================
+// SAVE TEST (WITH CHECKBOXES)
 window.saveTest = async function () {
 
     if (!currentUser) return;
@@ -195,19 +203,25 @@ window.saveTest = async function () {
         createdAt: serverTimestamp(),
 
         attemptLimit: 3,
-        antiCheat: false
+
+        antiCheatSettings: {
+            tabSwitch: document.getElementById("ac_tabSwitch").checked,
+            fullscreen: document.getElementById("ac_fullscreen").checked,
+            copyPaste: document.getElementById("ac_copyPaste").checked,
+            disableRightClick: document.getElementById("ac_disableRightClick").checked,
+            focusLoss: document.getElementById("ac_focusLoss").checked
+        }
 
     });
 
     alert("Saved!");
 
     loadTests();
+
 };
 
 
-// =========================
 // DELETE TEST
-// =========================
 window.deleteTest = async function (id) {
 
     await deleteDoc(doc(db, "tests", id));
@@ -217,9 +231,7 @@ window.deleteTest = async function (id) {
 };
 
 
-// =========================
 // STUDENT VIEW
-// =========================
 window.openStudentView = function (id) {
 
     window.open(`student-assessment.html?id=${id}`, "_blank");
