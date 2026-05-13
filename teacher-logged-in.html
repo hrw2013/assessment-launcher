@@ -52,11 +52,44 @@
 
 <br><br>
 
-<label>
+
+
+        <h3>Strict Mode Options</h3>
+
+        <label>
     <input type="checkbox" id="antiCheat">
     Enable Anti-Cheating Mode
 </label>
+        
+<label>
+    <input type="checkbox" id="ac_tabSwitch">
+    Log tab switching / leaving page
+</label>
+<br>
 
+<label>
+    <input type="checkbox" id="ac_fullscreen">
+    Force fullscreen mode
+</label>
+<br>
+
+<label>
+    <input type="checkbox" id="ac_copyPaste">
+    Detect copy/paste attempts
+</label>
+<br>
+
+<label>
+    <input type="checkbox" id="ac_disableRightClick">
+    Disable right-click
+</label>
+<br>
+
+<label>
+    <input type="checkbox" id="ac_focusLoss">
+    Track focus loss (auto-submit if too many)
+</label>
+        
         <div id="questions"></div>
 
         <button class="btn-add" onclick="addQuestion()">+ Add Question</button>
@@ -219,9 +252,17 @@ await addDoc(collection(db, "tests"), {
     createdAt: serverTimestamp(),
 
     attemptLimit: parseInt(document.getElementById("attemptLimit").value),
-    antiCheat: document.getElementById("antiCheat").checked
+
+    antiCheat: true, // master toggle (optional keep)
+
+    antiCheatSettings: {
+        tabSwitch: document.getElementById("ac_tabSwitch").checked,
+        fullscreen: document.getElementById("ac_fullscreen").checked,
+        copyPaste: document.getElementById("ac_copyPaste").checked,
+        disableRightClick: document.getElementById("ac_disableRightClick").checked,
+        focusLoss: document.getElementById("ac_focusLoss").checked
+    }
 });
-    
 // LOAD TESTS
 window.loadTests = async function() {
 
