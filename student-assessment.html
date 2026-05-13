@@ -95,7 +95,6 @@ async function loadTest(id) {
     try {
 
         const testRef = doc(db, "tests", id);
-
         const testSnap = await getDoc(testRef);
 
         if (!testSnap.exists()) {
@@ -109,16 +108,59 @@ async function loadTest(id) {
 
         currentTest = testSnap.data();
 
+        // =========================
+        // HARD ANTI-RETAKE CHECK
+        // =========================
 
-            // FIRST OPEN
+        const lockId =
+            id + "_" + studentEmail;
+
+        // 1. Check if already completed
+        const resultsQuery = query(
+            collection(db, "results"),
+            where("testId", "==", id),
+            where("studentName", "==", studentEmail)
+        );
+
+        const resultsSnap = await getDocs(resultsQuery);
+
+        if (resultsSnap.size > 0 && currentTest.lockOnOpen === true) {
+
+            document.getElementById("testContent").innerHTML = `
+                <h2>Access Denied</h2>
+                <p>You have already completed this assessment.</p>
+            `;
+
+            return;
+
+        }
+
+        // 2. Check if one-attempt lock exists
+        if (currentTest.lockOnOpen === true) {
+
+            const openedRef =
+                doc(db, "openedTests", lockId);
+
+            const openedSnap =
+                await getDoc(openedRef);
+
+            if (openedSnap.exists()) {
+
+                document.getElementById("testContent").innerHTML = `
+                    <h2>Access Denied</h2>
+                    <p>This assessment can only be opened once.</p>
+                `;
+
+                return;
+
+            }
+
+            // FIRST TIME OPEN → LOCK IT
             await setDoc(openedRef, {
 
                 testId: id,
-
                 studentEmail: studentEmail,
-
                 openedAt: serverTimestamp(),
-
                 locked: true
 
             });
@@ -130,33 +172,21 @@ async function loadTest(id) {
         // =========================
 
         await setDoc(
-            doc(
-                db,
-                "inProgressTests",
-                id + "_" + studentEmail
-            ),
+            doc(db, "inProgressTests", lockId),
             {
-
                 testId: id,
-
                 studentEmail: studentEmail,
-
                 status: "in-progress",
-
                 startedAt: serverTimestamp()
-
             }
         );
 
         // =========================
-        // LOAD SAVED DRAFT
+        // LOAD DRAFT
         // =========================
 
-        const draftRef = doc(
-            db,
-            "testDrafts",
-            id + "_" + studentEmail
-        );
+        const draftRef =
+            doc(db, "testDrafts", lockId);
 
         const draftSnap = await getDoc(draftRef);
 
@@ -169,25 +199,19 @@ async function loadTest(id) {
 
         renderTest();
 
-        // =========================
         // RESTORE ANSWERS
-        // =========================
-
         setTimeout(() => {
 
             Object.keys(savedAnswers).forEach((key) => {
 
                 const value = savedAnswers[key];
 
-                const input = document.querySelector(
-                    `input[name="${key}"][value="${value}"]`
-                );
+                const input =
+                    document.querySelector(
+                        `input[name="${key}"][value="${value}"]`
+                    );
 
-                if (input) {
-
-                    input.checked = true;
-
-                }
+                if (input) input.checked = true;
 
             });
 
