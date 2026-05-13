@@ -147,14 +147,22 @@ async function loadTests() {
             )
         );
 
-        // RESULTS LOOKUP MAP
+        // STORE ALL ATTEMPTS
         const resultsMap = {};
 
         resultsSnap.forEach(resultDoc => {
 
             const data = resultDoc.data();
 
-            resultsMap[data.testId] = data;
+            // CREATE ARRAY IF NEEDED
+            if (!resultsMap[data.testId]) {
+
+                resultsMap[data.testId] = [];
+
+            }
+
+            // PUSH ATTEMPT
+            resultsMap[data.testId].push(data);
 
         });
 
@@ -172,7 +180,7 @@ async function loadTests() {
 
             const data = docSnap.data();
 
-            const result = resultsMap[docSnap.id];
+            const attempts = resultsMap[docSnap.id] || [];
 
             const div = document.createElement("div");
 
@@ -182,20 +190,31 @@ async function loadTests() {
 
             let button = "";
 
-            // COMPLETED
-            if (result) {
+            let attemptsHTML = "";
+
+            // HAS ATTEMPTS
+            if (attempts.length > 0) {
 
                 statusLine = "Completed";
+
+                // SHOW ALL ATTEMPTS
+                attempts.forEach((attempt, index) => {
+
+                    attemptsHTML += `
+                        <p>
+                            Attempt ${index + 1}:
+                            ${attempt.score}/${attempt.total}
+                            (${attempt.percentage}%)
+                        </p>
+                    `;
+
+                });
 
                 // LOCKED TEST
                 if (data.lockOnOpen === true) {
 
                     button = `
-                        <p>
-                            Score:
-                            ${result.score}/${result.total}
-                            (${result.percentage}%)
-                        </p>
+                        ${attemptsHTML}
 
                         <p>✔ One Attempt Only</p>
                     `;
@@ -206,11 +225,7 @@ async function loadTests() {
                 else {
 
                     button = `
-                        <p>
-                            Score:
-                            ${result.score}/${result.total}
-                            (${result.percentage}%)
-                        </p>
+                        ${attemptsHTML}
 
                         <p>Multiple Attempts Allowed</p>
 
@@ -263,7 +278,6 @@ async function loadTests() {
     }
 
 }
-
 // OPEN TEST
 window.openTest = async function(testId) {
 
