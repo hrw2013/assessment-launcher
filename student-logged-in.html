@@ -3,9 +3,64 @@
 <head>
 <title>Student Dashboard</title>
 
-  <style> body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; } .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); } .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; } .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; } .option:hover { background: #f0f7ff; border-color: #1a73e8; } input[type="radio"] { margin-right: 10px; transform: scale(1.2); } .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; } .loading { font-style: italic; color: #666; } </style>
-    </style>
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 40px;
+    background-color: #f4f7f6;
+}
 
+.container {
+    max-width: 700px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.q-block {
+    margin-bottom: 25px;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    text-align: left;
+}
+
+.option {
+    display: block;
+    margin: 10px 0;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.option:hover {
+    background: #f0f7ff;
+    border-color: #1a73e8;
+}
+
+input[type="radio"] {
+    margin-right: 10px;
+    transform: scale(1.2);
+}
+
+.btn-submit {
+    background: #34a853;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    width: 100%;
+}
+
+.loading {
+    font-style: italic;
+    color: #666;
+}
+</style>
 
 </head>
 
@@ -16,17 +71,24 @@
 <div id="testList">Loading assessments...</div>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { 
-    getFirestore, 
-    collection, 
-  doc,
-  setDoc,
-  serverTimestamp,
-    getDoc, 
-    query, 
-    where 
+
+import {
+    getAuth,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+import {
+    getFirestore,
+    collection,
+    doc,
+    setDoc,
+    serverTimestamp,
+    getDoc,
+    getDocs,
+    query,
+    where
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -39,169 +101,227 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 const auth = getAuth(app);
+
 const db = getFirestore(app);
 
 let currentUserEmail = "";
 
-// 🔐 AUTH
+// AUTH
 onAuthStateChanged(auth, (user) => {
+
     if (!user) {
+
         window.location.href = "login.html";
+
         return;
+
     }
 
     currentUserEmail = user.email;
+
     console.log("Student:", currentUserEmail);
 
     loadTests();
+
 });
 
-// 📥 LOAD TESTS + RESULTS
+// LOAD TESTS
 async function loadTests() {
+
     const container = document.getElementById("testList");
 
     try {
+
         container.innerHTML = "Loading assessments...";
 
-        const testSnap = await getDocs(collection(db, "tests"));
-        const resultsSnap = await getDocs(
-            query(collection(db, "results"), where("studentName", "==", currentUserEmail))
+        const testSnap = await getDocs(
+            collection(db, "tests")
         );
 
-        // 🔁 Convert results into lookup map
+        const resultsSnap = await getDocs(
+            query(
+                collection(db, "results"),
+                where("studentName", "==", currentUserEmail)
+            )
+        );
+
+        // RESULTS LOOKUP MAP
         const resultsMap = {};
-        resultsSnap.forEach(doc => {
-            const data = doc.data();
+
+        resultsSnap.forEach(resultDoc => {
+
+            const data = resultDoc.data();
+
             resultsMap[data.testId] = data;
+
         });
 
         if (testSnap.empty) {
+
             container.innerHTML = "No assessments available.";
+
             return;
+
         }
 
         container.innerHTML = "";
 
         testSnap.forEach(docSnap => {
+
             const data = docSnap.data();
-         const result = resultsMap[docSnap.id];
 
-const div = document.createElement("div");
-div.className = "card";
+            const result = resultsMap[docSnap.id];
 
-if (result) {
+            const div = document.createElement("div");
 
-    statusLine = "Completed";
+            div.className = "q-block";
 
-    // LOCKED TESTS
-    if (data.lockOnOpen === true) {
+            let statusLine = "";
 
-        button = `
-            <p>
-                Score: ${result.score}/${result.total}
-                (${result.percentage}%)
-            </p>
+            let button = "";
 
-            <p>✔ One Attempt Only</p>
-        `;
+            // COMPLETED
+            if (result) {
+
+                statusLine = "Completed";
+
+                // LOCKED TEST
+                if (data.lockOnOpen === true) {
+
+                    button = `
+                        <p>
+                            Score:
+                            ${result.score}/${result.total}
+                            (${result.percentage}%)
+                        </p>
+
+                        <p>✔ One Attempt Only</p>
+                    `;
+
+                }
+
+                // RETAKES ALLOWED
+                else {
+
+                    button = `
+                        <p>
+                            Score:
+                            ${result.score}/${result.total}
+                            (${result.percentage}%)
+                        </p>
+
+                        <p>Multiple Attempts Allowed</p>
+
+                        <button
+                            class="btn-submit"
+                            onclick="retakeTest('${docSnap.id}')"
+                        >
+                            Retake Test
+                        </button>
+                    `;
+
+                }
+
+            }
+
+            // NOT TAKEN
+            else {
+
+                statusLine = "Not Taken";
+
+                button = `
+                    <button
+                        class="btn-submit"
+                        onclick="openTest('${docSnap.id}')"
+                    >
+                        Start Test
+                    </button>
+                `;
+
+            }
+
+            div.innerHTML = `
+                <h2>${data.testName}</h2>
+
+                <p>Status: ${statusLine}</p>
+
+                ${button}
+            `;
+
+            container.appendChild(div);
+
+        });
+
+    } catch (e) {
+
+        console.error("LOAD TESTS ERROR:", e);
+
+        container.innerHTML = "Failed to load assessments.";
 
     }
 
-    // MULTIPLE ATTEMPTS ALLOWED
-    else {
-
-        button = `
-            <p>
-                Score: ${result.score}/${result.total}
-                (${result.percentage}%)
-            </p>
-
-            <p>Multiple Attempts Allowed</p>
-
-            <button onclick="retakeTest('${id}')">
-                Retake Test
-            </button>
-        `;
-
-    }
-
 }
 
-// IN PROGRESS
-else if (status === "in-progress") {
-
-    statusLine = "In Progress";
-
-    button = `
-        <button onclick="openTest('${id}')">
-            Resume Test
-        </button>
-    `;
-
-}
-
-// NOT TAKEN
-else {
-
-    statusLine = "Not Taken";
-
-    button = `
-        <button onclick="openTest('${id}')">
-            Start Test
-        </button>
-    `;
-
-}
-
-// 🚀 OPEN TEST
+// OPEN TEST
 window.openTest = async function(testId) {
 
     try {
 
         const testRef = doc(db, "tests", testId);
+
         const testSnap = await getDoc(testRef);
 
         if (!testSnap.exists()) {
+
             alert("Test not found.");
+
             return;
+
         }
 
         const testData = testSnap.data();
 
-        // =========================
         // LOCK CHECK
-        // =========================
-
         if (testData.lockOnOpen === true) {
 
-            const openedId = testId + "_" + currentUserEmail;
+            const openedId =
+                testId + "_" + currentUserEmail;
 
-            const openedRef = doc(db, "openedTests", openedId);
+            const openedRef = doc(
+                db,
+                "openedTests",
+                openedId
+            );
 
             const openedSnap = await getDoc(openedRef);
 
-            // Already opened before
+            // ALREADY OPENED
             if (openedSnap.exists()) {
 
-                alert("This assessment can only be opened once.");
+                alert(
+                    "This assessment can only be opened once."
+                );
 
                 return;
+
             }
 
-            // First open → save record
+            // SAVE OPEN RECORD
             await setDoc(openedRef, {
+
                 testId: testId,
+
                 studentEmail: currentUserEmail,
+
                 openedAt: serverTimestamp()
+
             });
 
         }
 
-        // =========================
         // OPEN TEST
-        // =========================
-
         window.open(
             `student-assessment.html?id=${testId}`,
             "_blank"
@@ -215,8 +335,18 @@ window.openTest = async function(testId) {
 
     }
 
-});
-  
+};
+
+// RETAKE TEST
+window.retakeTest = function(testId) {
+
+    window.open(
+        `student-assessment.html?id=${testId}`,
+        "_blank"
+    );
+
+};
+
 </script>
 
 </body>
