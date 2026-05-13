@@ -109,8 +109,44 @@ onAuthStateChanged(auth, (user) => {
     currentUser = user;
 
     loadTests();
+    loadClasses();
 });
 
+    // load classes
+
+    window.loadClasses = async function () {
+
+    const list = document.getElementById("classList");
+
+    const snap = await getDocs(collection(db, "classes"));
+
+    list.innerHTML = "";
+
+    if (snap.empty) {
+        list.innerHTML = "<p>No classes yet.</p>";
+        return;
+    }
+
+    snap.forEach(c => {
+
+        const d = c.data();
+
+        const div = document.createElement("div");
+        div.className = "card";
+
+        div.innerHTML = `
+            <b>${d.className}</b><br><br>
+
+            <small>
+                Students: ${(d.students || []).length}
+            </small>
+        `;
+
+        list.appendChild(div);
+
+    });
+
+};
 
 // LOAD TESTS
 window.loadTests = async function () {
