@@ -66,6 +66,10 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 
 </div>
 
+    <h2>Classes</h2>
+<div id="classList">Loading classes...</div>
+    
+
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -148,6 +152,26 @@ onAuthStateChanged(auth, (user) => {
 
 };
 
+    // create class
+
+window.createClass = async function () {
+
+    const name = document.getElementById("className").value;
+
+    if (!name) return alert("Enter class name");
+
+    await addDoc(collection(db, "classes"), {
+        className: name,
+        teacherId: currentUser.uid,
+        students: []
+    });
+
+    document.getElementById("className").value = "";
+
+    loadClasses(); // 🔥 refresh immediately
+
+};
+    
 // LOAD TESTS
 window.loadTests = async function () {
 
