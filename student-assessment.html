@@ -95,27 +95,56 @@ async function loadTest(id) {
     try {
 
         const testRef = doc(db, "tests", id);
+
         const testSnap = await getDoc(testRef);
 
         if (!testSnap.exists()) {
+
             document.getElementById("testContent").innerHTML =
                 "<h2>Assessment not found.</h2>";
+
             return;
+
         }
 
         currentTest = testSnap.data();
+
+
+            // FIRST OPEN
+            await setDoc(openedRef, {
+
+                testId: id,
+
+                studentEmail: studentEmail,
+
+                openedAt: serverTimestamp(),
+
+                locked: true
+
+            });
+
+        }
 
         // =========================
         // MARK IN PROGRESS
         // =========================
 
         await setDoc(
-            doc(db, "inProgressTests", id + "_" + studentEmail),
+            doc(
+                db,
+                "inProgressTests",
+                id + "_" + studentEmail
+            ),
             {
+
                 testId: id,
+
                 studentEmail: studentEmail,
+
                 status: "in-progress",
+
                 startedAt: serverTimestamp()
+
             }
         );
 
@@ -132,7 +161,10 @@ async function loadTest(id) {
         const draftSnap = await getDoc(draftRef);
 
         if (draftSnap.exists()) {
-            savedAnswers = draftSnap.data().answers || {};
+
+            savedAnswers =
+                draftSnap.data().answers || {};
+
         }
 
         renderTest();
@@ -152,7 +184,9 @@ async function loadTest(id) {
                 );
 
                 if (input) {
+
                     input.checked = true;
+
                 }
 
             });
