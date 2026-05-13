@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Student Results</title>
+
     <style>
         body { font-family: Arial; padding: 20px; text-align: center; background: #f4f7f6; }
         .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -10,18 +11,24 @@
         th { background: #007bff; color: white; }
         .back-btn { float: left; padding: 10px; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 4px; }
     </style>
+
 </head>
 
 <body>
 
 <div class="container">
-    <button class="back-btn" onclick="window.location.href='teacher-logged-in.html'">
+
+    <button
+        class="back-btn"
+        onclick="window.location.href='teacher-logged-in.html'"
+    >
         ← Back to Dashboard
     </button>
 
     <h1 id="headerTitle">Results</h1>
 
     <table>
+
         <thead>
             <tr>
                 <th>Student Email</th>
@@ -33,25 +40,33 @@
         </thead>
 
         <tbody id="resultsBody"></tbody>
+
     </table>
+
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { 
-    getFirestore, 
-    collection, 
-    getDocs, 
-    query, 
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+import {
+    getFirestore,
+    collection,
+    getDocs,
+    query,
     where,
     deleteDoc,
-    doc
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    doc,
+    getDoc
+}
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-import { 
-    getAuth, 
-    onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+    getAuth,
+    onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
@@ -63,120 +78,272 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 const db = getFirestore(app);
+
 const auth = getAuth(app);
 
-// Get test ID from URL
-const urlParams = new URLSearchParams(window.location.search);
-const testId = urlParams.get('id');
+// GET TEST ID
+const urlParams =
+    new URLSearchParams(window.location.search);
 
-// 📊 LOAD RESULTS
+const testId = urlParams.get("id");
+
+// LOAD RESULTS
 async function fetchResults() {
-    const body = document.getElementById('resultsBody');
-    const header = document.getElementById('headerTitle');
+
+    const body =
+        document.getElementById("resultsBody");
+
+    const header =
+        document.getElementById("headerTitle");
 
     try {
-        const q = query(collection(db, "results"), where("testId", "==", testId));
+
+        const q = query(
+            collection(db, "results"),
+            where("testId", "==", testId)
+        );
+
         const snap = await getDocs(q);
 
         if (snap.empty) {
+
             body.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align:center;padding:20px;">
+                    <td
+                        colspan="5"
+                        style="
+                            text-align:center;
+                            padding:20px;
+                        "
+                    >
                         No results found
                     </td>
                 </tr>
             `;
+
             return;
+
         }
 
         body.innerHTML = "";
 
+        const scores = [];
+
+        let totalStudents = 0;
+
         snap.forEach((docSnap) => {
+
             const data = docSnap.data();
 
+            scores.push(data.percentage);
+
+            totalStudents++;
+
             let dateStr = "N/A";
-            if (data.completedAt && data.completedAt.toDate) {
-                dateStr = data.completedAt.toDate().toLocaleDateString();
+
+            if (
+                data.completedAt &&
+                data.completedAt.toDate
+            ) {
+
+                dateStr =
+                    data.completedAt
+                    .toDate()
+                    .toLocaleDateString();
+
             }
 
             if (data.testName) {
-                header.innerText = "Results for: " + data.testName;
+
+                header.innerText =
+                    "Results for: " + data.testName;
+
             }
 
-            const row = document.createElement("tr");
+            const row =
+                document.createElement("tr");
 
             row.innerHTML = `
-                <td>${data.studentName || "Unknown"}</td>
-                <td>${data.score} / ${data.total}</td>
-                <td>${data.percentage}%</td>
-                <td>${dateStr}</td>
                 <td>
-                    <button onclick="deleteResult('${docSnap.id}')"
-                        style="background:red;color:white;border:none;padding:6px 10px;cursor:pointer;">
+                    ${data.studentName || "Unknown"}
+                </td>
+
+                <td>
+                    ${data.score} / ${data.total}
+                </td>
+
+                <td>
+                    ${data.percentage}%
+                </td>
+
+                <td>
+                    ${dateStr}
+                </td>
+
+                <td>
+
+                    <button
+                        onclick="deleteResult('${docSnap.id}')"
+                        style="
+                            background:red;
+                            color:white;
+                            border:none;
+                            padding:6px 10px;
+                            cursor:pointer;
+                        "
+                    >
                         Delete
                     </button>
+
                 </td>
             `;
 
             body.appendChild(row);
+
         });
 
+        // CLASS STATS
+        const avg =
+            scores.reduce((a, b) => a + b, 0)
+            / scores.length;
+
+        header.innerHTML += `
+            <br>
+
+            <small>
+                Students:
+                ${totalStudents}
+
+                |
+
+                Avg:
+                ${avg.toFixed(1)}%
+            </small>
+        `;
+
     } catch (err) {
+
         console.error(err);
-        document.getElementById('resultsBody').innerHTML =
-            `<tr><td colspan="5" style="color:red;">${err.message}</td></tr>`;
+
+        document.getElementById("resultsBody").innerHTML =
+            `
+            <tr>
+                <td colspan="5" style="color:red;">
+                    ${err.message}
+                </td>
+            </tr>
+            `;
+
     }
+
 }
 
-// 🗑 DELETE RESULT
+// DELETE RESULT
 window.deleteResult = async function(id) {
-    if (!confirm("Delete this response?")) return;
+
+    if (!confirm("Delete this response?")) {
+
+        return;
+
+    }
 
     try {
-        await deleteDoc(doc(db, "results", id));
+
+        // GET RESULT DATA
+
+        const resultRef =
+            doc(db, "results", id);
+
+        const resultSnap =
+            await getDoc(resultRef);
+
+        if (!resultSnap.exists()) {
+
+            alert("Result not found.");
+
+            return;
+
+        }
+
+        const data = resultSnap.data();
+
+        // DELETE RESULT
+
+        await deleteDoc(resultRef);
+
+        // REMOVE LOCK
+
+        const openedId =
+            data.testId + "_" + data.studentName;
+
+        await deleteDoc(
+            doc(db, "openedTests", openedId)
+        );
+
+        // REMOVE IN PROGRESS
+
+        await deleteDoc(
+            doc(
+                db,
+                "inProgressTests",
+                openedId
+            )
+        );
+
+        // REMOVE DRAFT
+
+        await deleteDoc(
+            doc(
+                db,
+                "testDrafts",
+                openedId
+            )
+        );
+
         location.reload();
+
     } catch (e) {
+
+        console.error(e);
+
         alert(e.message);
+
     }
+
 };
 
-// 🔐 AUTH CHECK (FIXED)
+// AUTH CHECK
 onAuthStateChanged(auth, (user) => {
 
     console.log("AUTH STATE:", user);
 
     if (!user) {
+
         alert("Not logged in");
+
         window.location.href = "teacher.html";
+
         return;
+
     }
 
     if (testId) {
+
         fetchResults();
+
     } else {
+
         alert("No Test ID provided.");
-        window.location.href = "teacher-logged-in.html";
+
+        window.location.href =
+            "teacher-logged-in.html";
+
     }
+
 });
 
-    const scores = [];
-let totalStudents = 0;
-
-snap.forEach(docSnap => {
-    const data = docSnap.data();
-    scores.push(data.percentage);
-    totalStudents++;
-});
-
-const avg = scores.reduce((a,b) => a+b, 0) / scores.length;
-
-header.innerHTML += `
-    <br><small>
-        Students: ${totalStudents} | Avg: ${avg.toFixed(1)}%
-    </small>
-`;
-    
 </script>
 
 </body>
