@@ -1,48 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Assessment</title>
+<title>Assessment</title>
 
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; }
-        .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; }
-        .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; }
-        .option:hover { background: #f0f7ff; border-color: #1a73e8; }
-        input[type="radio"] { margin-right: 10px; transform: scale(1.2); }
-        .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; }
-        .loading { font-style: italic; color: #666; }
-    </style>
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; }
+.container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; }
+.option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; }
+.option:hover { background: #f0f7ff; border-color: #1a73e8; }
+input[type="radio"] { margin-right: 10px; transform: scale(1.2); }
+.btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; }
+.loading { font-style: italic; color: #666; }
+</style>
+
 </head>
 
 <body>
 
 <div class="container">
     <div id="testContent">
-        <p class="loading">Loading your assessment...</p>
+        <p class="loading">Loading assessment...</p>
     </div>
 </div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-
 import {
     getAuth,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
 import {
     getFirestore,
     doc,
     getDoc,
     addDoc,
-    collection,
-    serverTimestamp,
     setDoc,
+    collection,
     query,
     where,
-    getDocs
+    getDocs,
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // =========================
@@ -63,7 +62,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // =========================
-// GLOBALS
+// GLOBAL STATE
 // =========================
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -71,14 +70,16 @@ const testId = urlParams.get("id");
 
 let currentTest = null;
 let studentEmail = "";
-let savedAnswers = {};
 
-// =========================
-// EXIT CONTROL (NEW)
-// =========================
+let strict = {
+    mode: "off",
+    tabSwitches: 0,
+    maxTabs: 3
+};
 
 let allowExit = false;
 
+// NO POPUP (clean exit control)
 window.addEventListener("beforeunload", (e) => {
     if (!allowExit) {
         e.preventDefault();
@@ -101,7 +102,7 @@ onAuthStateChanged(auth, async (user) => {
 
     if (!testId) {
         document.getElementById("testContent").innerHTML =
-            "<h2>No test ID provided.</h2>";
+            "<h2>No test ID provided</h2>";
         return;
     }
 
@@ -115,279 +116,126 @@ onAuthStateChanged(auth, async (user) => {
 
 async function loadTest(id) {
 
-    try {
+    const snap = await getDoc(doc(db, "tests", id));
 
-        const testRef = doc(db, "tests", id);
-        const testSnap = await getDoc(testRef);
+    if (!snap.exists()) {
+        document.getElementById("testContent").innerHTML =
+            "<h2>Test not found</h2>";
+        return;
+    }
 
-        if (!testSnap.exists()) {
+    currentTest = snap.data();
 
-            document.getElementById("testContent").innerHTML =
-                "<h2>Assessment not found.</h2>";
+    // =========================
+    // STRICT MODE LOAD
+    // =========================
 
-            return;
+    strict.mode = currentTest.antiCheatSettings?.mode || "off";
+    strict.maxTabs = currentTest.antiCheatSettings?.maxTabs || 3;
 
-        }
+    // =========================
+    // ATTEMPT LIMIT
+    // =========================
 
-        currentTest = testSnap.data();
+    const attemptSnap = await getDocs(query(
+        collection(db, "results"),
+        where("testId", "==", id),
+        where("studentName", "==", studentEmail)
+    ));
 
-        // =========================
-        // ATTEMPT LIMIT
-        // =========================
+    const attemptLimit = currentTest.attemptLimit ?? 999;
 
-      const attemptQuery = query(
-    collection(db, "results"),
-    where("testId", "==", id),
-    where("studentName", "==", studentEmail)
-);
+    if (attemptLimit !== 999 && attemptSnap.size >= attemptLimit) {
+        document.getElementById("testContent").innerHTML =
+            "<h2>No attempts left</h2>";
+        return;
+    }
 
-const attemptSnap = await getDocs(attemptQuery);
-
-const attemptCount = attemptSnap.size;
-
-const limit = currentTest.attemptLimit ?? 999;
-
-if (limit !== 999 && attemptCount >= limit) {
-
-    document.getElementById("testContent").innerHTML = `
-        <h2>Access Denied</h2>
-        <p>You have used all allowed attempts (${limit}).</p>
-    `;
-
-    return;
-}
-        const ac = currentTest.antiCheatSettings || {};
-
-        // =========================
-        // TAB SWITCH
-        // =========================
-
-     let tabSwitchCount = 0;
-let maxTabs = ac.maxTabs ?? 3;
-
-if (ac.tabSwitch) {
+    // =========================
+    // TAB SWITCH SYSTEM
+    // =========================
 
     document.addEventListener("visibilitychange", () => {
 
         if (document.hidden) {
 
-            tabSwitchCount++;
+            strict.tabSwitches++;
 
             logCheat("tab-switch");
 
-            if (tabSwitchCount >= maxTabs) {
+            if (strict.mode === "medium" && strict.tabSwitches >= strict.maxTabs) {
+                alert("Warning: Tab switching detected");
+            }
 
-                if (ac.lockMode === "strict") {
-                    submitTest();
-                } else {
-                    alert("Warning: Tab switching detected.");
-                }
+            if (strict.mode === "strict" && strict.tabSwitches >= strict.maxTabs) {
+                submitTest();
+            }
 
+            if (strict.mode === "lockdown") {
+                submitTest();
             }
 
         }
 
     });
 
-}
+    // =========================
+    // FULLSCREEN LOCK
+    // =========================
 
-        // =========================
-        // FULLSCREEN LOCK
-        // =========================
+    if (strict.mode === "strict" || strict.mode === "lockdown") {
 
-      if (ac.fullscreen) {
+        const goFull = async () => {
+            const el = document.documentElement;
+            if (el.requestFullscreen) await el.requestFullscreen();
+        };
 
-    const goFull = async () => {
+        goFull();
 
-        const el = document.documentElement;
-
-        if (el.requestFullscreen) {
-            await el.requestFullscreen();
-        }
-
-    };
-
-    goFull();
-
-    document.addEventListener("fullscreenchange", () => {
-
-        if (!document.fullscreenElement) {
-            goFull(); // forces re-entry loop
-        }
-
-    });
-
-}
-
-        // =========================
-        // COPY/PASTE BLOCK
-        // =========================
-
-        if (ac.copyPaste) {
-
-            document.addEventListener("copy", (e) => {
-                e.preventDefault();
-                logCheat("copy");
-            });
-
-            document.addEventListener("paste", (e) => {
-                e.preventDefault();
-                logCheat("paste");
-            });
-
-        }
-
-        // =========================
-        // RIGHT CLICK BLOCK
-        // =========================
-
-        if (ac.disableRightClick) {
-
-            document.addEventListener("contextmenu", (e) => {
-                e.preventDefault();
-            });
-
-        }
-
-        // =========================
-        // FOCUS LOSS
-        // =========================
-
-        let focusLoss = 0;
-
-        if (ac.focusLoss) {
-
-            window.addEventListener("blur", () => {
-
-                focusLoss++;
-                logCheat("focus-loss");
-
-                if (focusLoss >= 3) {
-                    submitTest();
-                }
-
-            });
-
-        }
-
-        // =========================
-        // LOCK SYSTEM
-        // =========================
-
-        const lockId = id + "_" + studentEmail;
-
-        const previousResultsSnap = await getDocs(
-            query(
-                collection(db, "results"),
-                where("testId", "==", id),
-                where("studentName", "==", studentEmail)
-            )
-        );
-
-        if (currentTest.lockOnOpen && previousResultsSnap.size > 0) {
-
-            document.getElementById("testContent").innerHTML =
-                "<h2>Already completed this assessment.</h2>";
-
-            return;
-
-        }
-
-        if (currentTest.lockOnOpen) {
-
-            const openedRef = doc(db, "openedTests", lockId);
-            const openedSnap = await getDoc(openedRef);
-
-            if (openedSnap.exists()) {
-
-                document.getElementById("testContent").innerHTML =
-                    "<h2>This test can only be opened once.</h2>";
-
-                return;
-
-            }
-
-            await setDoc(openedRef, {
-                testId: id,
-                studentEmail,
-                openedAt: serverTimestamp(),
-                locked: true
-            });
-
-        }
-
-        // =========================
-        // IN PROGRESS
-        // =========================
-
-        await setDoc(
-            doc(db, "inProgressTests", lockId),
-            {
-                testId: id,
-                studentEmail,
-                status: "in-progress",
-                startedAt: serverTimestamp()
-            }
-        );
-
-        // =========================
-        // LOAD DRAFT
-        // =========================
-
-        const draftSnap = await getDoc(doc(db, "testDrafts", lockId));
-
-        if (draftSnap.exists()) {
-            savedAnswers = draftSnap.data().answers || {};
-        }
-
-        renderTest();
-
-        setTimeout(() => {
-
-            Object.keys(savedAnswers).forEach((key) => {
-
-                const input = document.querySelector(
-                    `input[name="${key}"][value="${savedAnswers[key]}"]`
-                );
-
-                if (input) input.checked = true;
-
-            });
-
-        }, 200);
-
-    } catch (e) {
-
-        console.error(e);
-
-        document.getElementById("testContent").innerHTML =
-            "<h2>Error loading assessment.</h2>";
+        document.addEventListener("fullscreenchange", () => {
+            if (!document.fullscreenElement) goFull();
+        });
 
     }
 
-}
+    // =========================
+    // COPY/PASTE BLOCK
+    // =========================
 
-// =========================
-// CHEAT LOGGER
-// =========================
+    if (strict.mode !== "off") {
 
-function logCheat(type) {
+        document.addEventListener("copy", (e) => {
+            e.preventDefault();
+            logCheat("copy");
+        });
 
-    setDoc(
-        doc(db, "cheatLogs", testId + "_" + studentEmail + "_" + Date.now()),
-        {
-            testId,
-            studentEmail,
-            type,
-            tabSwitches: tabSwitchCount || 0,
-            time: serverTimestamp()
+        document.addEventListener("paste", (e) => {
+            e.preventDefault();
+            logCheat("paste");
+        });
+
+    }
+
+    // =========================
+    // FOCUS LOSS
+    // =========================
+
+    window.addEventListener("blur", () => {
+
+        logCheat("blur");
+
+        if (strict.mode === "strict" || strict.mode === "lockdown") {
+            submitTest();
         }
-    );
+
+    });
+
+    renderTest();
 
 }
 
 // =========================
-// RENDER
+// RENDER TEST
 // =========================
 
 function renderTest() {
@@ -399,7 +247,7 @@ function renderTest() {
         html += `
         <div class="q-block">
 
-            <p><strong>${i + 1}. ${q.q}</strong></p>
+            <p><b>${i + 1}. ${q.q}</b></p>
 
             <label class="option"><input type="radio" name="q${i}" value="A"> ${q.a}</label>
             <label class="option"><input type="radio" name="q${i}" value="B"> ${q.b}</label>
@@ -410,7 +258,7 @@ function renderTest() {
     });
 
     html += `
-        <button class="btn-submit" onclick="submitTest()">Finish & Submit</button>
+        <button class="btn-submit" onclick="submitTest()">Submit</button>
     `;
 
     document.getElementById("testContent").innerHTML = html;
@@ -418,45 +266,33 @@ function renderTest() {
 }
 
 // =========================
-// AUTO SAVE
+// CHEAT LOGGER
 // =========================
 
-setInterval(async () => {
+function logCheat(type) {
 
-    if (!currentTest) return;
-
-    const answers = {};
-
-    currentTest.questions.forEach((q, i) => {
-
-        const selected = document.querySelector(`input[name="q${i}"]:checked`);
-        if (selected) answers[`q${i}`] = selected.value;
-
-    });
-
-    await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
+    setDoc(doc(
+        db,
+        "cheatLogs",
+        testId + "_" + studentEmail + "_" + Date.now()
+    ), {
         testId,
         studentEmail,
-        answers,
-        updatedAt: serverTimestamp()
+        type,
+        tabSwitches: strict.tabSwitches,
+        mode: strict.mode,
+        time: serverTimestamp()
     });
 
-}, 5000);
+}
 
 // =========================
-// SUBMIT
+// SUBMIT TEST
 // =========================
 
 window.submitTest = async function () {
 
     allowExit = true;
-    document.exitFullscreen?.();
-
-    const btn = document.querySelector(".btn-submit");
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "Submitting...";
-    }
 
     let score = 0;
     const total = currentTest.questions.length;
@@ -464,7 +300,10 @@ window.submitTest = async function () {
     currentTest.questions.forEach((q, i) => {
 
         const selected = document.querySelector(`input[name="q${i}"]:checked`);
-        if (selected && selected.value === q.correct) score++;
+
+        if (selected && selected.value === q.correct) {
+            score++;
+        }
 
     });
 
@@ -479,22 +318,17 @@ window.submitTest = async function () {
     });
 
     await setDoc(doc(db, "inProgressTests", testId + "_" + studentEmail), {
-        testId,
-        studentEmail,
-        status: "completed",
-        completedAt: serverTimestamp()
+        status: "completed"
     });
 
-    await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
-        cleared: true
-    });
+    document.exitFullscreen?.();
 
-    // CLOSE WINDOW (works if opened by window.open)
     window.open('', '_self');
     window.close();
 
 };
 
 </script>
+
 </body>
 </html>
