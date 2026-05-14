@@ -4,7 +4,7 @@
     <title>Assessment</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; }
-        .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .q-block { margin-bottom: 25px; padding: 15px; border-bottom: 1px solid #eee; text-align: left; }
         .option { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; }
         .option:hover { background: #f0f7ff; border-color: #1a73e8; }
@@ -39,7 +39,10 @@ import {
     addDoc,
     collection,
     serverTimestamp,
-    setDoc
+    setDoc,
+    query,
+    where,
+    getDocs
 }
 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -77,8 +80,10 @@ onAuthStateChanged(auth, async (user) => {
     studentEmail = user.email;
 
     if (!testId) {
+
         document.getElementById("testContent").innerHTML =
             "<h2>No test ID provided.</h2>";
+
         return;
     }
 
@@ -108,141 +113,168 @@ async function loadTest(id) {
 
         currentTest = testSnap.data();
 
-  const ac = currentTest.antiCheatSettings || {};
+        // =========================
+        // ATTEMPT LIMIT SYSTEM
+        // =========================
 
-    // TAB SWITCH DETECTIONif (ac.tabSwitch) {
+        const attemptsRef = collection(db, "results");
 
-    document.addEventListener("visibilitychange", () => {
+        const attemptQuery = query(
+            attemptsRef,
+            where("testId", "==", id),
+            where("studentName", "==", studentEmail)
+        );
 
-        if (document.hidden) {
+        const attemptSnap = await getDocs(attemptQuery);
 
-            setDoc(doc(
-                db,
-                "cheatLogs",
-                testId + "_" + studentEmail + "_tab_" + Date.now()
-            ), {
-                testId,
-                studentEmail,
-                type: "tab-switch",
-                time: serverTimestamp()
+        const attemptCount = attemptSnap.size;
+
+        if (currentTest.attemptLimit !== 999) {
+
+            if (attemptCount >= currentTest.attemptLimit) {
+
+                document.getElementById("testContent").innerHTML = `
+                    <h2>Access Denied</h2>
+                    <p>You have used all allowed attempts.</p>
+                `;
+
+                return;
+            }
+
+        }
+
+        const ac = currentTest.antiCheatSettings || {};
+
+        // =========================
+        // TAB SWITCH DETECTION
+        // =========================
+
+        if (ac.tabSwitch) {
+
+            document.addEventListener("visibilitychange", () => {
+
+                if (document.hidden) {
+
+                    setDoc(doc(
+                        db,
+                        "cheatLogs",
+                        testId + "_" + studentEmail + "_tab_" + Date.now()
+                    ), {
+                        testId,
+                        studentEmail,
+                        type: "tab-switch",
+                        time: serverTimestamp()
+                    });
+
+                    alert("Warning: Tab switching detected.");
+
+                }
+
             });
 
         }
 
-    });
+        // =========================
+        // FULLSCREEN LOCK
+        // =========================
 
+        if (ac.fullscreen) {
 
-    // fullscreen lock
+            const goFull = () => {
 
-    if (ac.fullscreen) {
+                const el = document.documentElement;
 
-    const goFull = () => {
+                if (el.requestFullscreen) {
+                    el.requestFullscreen();
+                }
 
-        const el = document.documentElement;
+            };
 
-        if (el.requestFullscreen) {
-            el.requestFullscreen();
-        }
-
-    };
-
-    goFull();
-
-          document.addEventListener("fullscreenchange", () => {
-
-        if (!document.fullscreenElement) {
             goFull();
-        }
 
-    });
+            document.addEventListener("fullscreenchange", () => {
 
-}
+                if (!document.fullscreenElement) {
+                    goFull();
+                }
 
-        // copy paste block
-
-        
-if (ac.copyPaste) {
-
-    document.addEventListener("copy", (e) => {
-        e.preventDefault();
-        logCheat("copy attempt");
-    });
-
-    document.addEventListener("paste", (e) => {
-        e.preventDefault();
-        logCheat("paste attempt");
-    });
-
-}
-
-function logCheat(type) {
-
-    setDoc(doc(
-        db,
-        "cheatLogs",
-        testId + "_" + studentEmail + "_" + Date.now()
-    ), {
-        testId,
-        studentEmail,
-        type,
-        time: serverTimestamp()
-    });
-
-}
-
-    // right click disable
-
-    if (ac.disableRightClick) {
-
-    document.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-    });
-
-}
-
-    // focus loss
-
-    let focusLoss = 0;
-
-if (ac.focusLoss) {
-
-    window.addEventListener("blur", () => {
-
-        focusLoss++;
-
-        logCheat("focus lost");
-
-        if (focusLoss >= 3) {
-
-            alert("Too many focus losses. Submitting test.");
-
-            submitTest();
+            });
 
         }
 
-    });
+        // =========================
+        // COPY PASTE BLOCK
+        // =========================
 
-}
-  
+        if (ac.copyPaste) {
 
-    // PAGE EXIT WARNING
-    window.addEventListener("beforeunload", (e) => {
+            document.addEventListener("copy", (e) => {
+                e.preventDefault();
+                logCheat("copy attempt");
+            });
 
-        e.preventDefault();
-        e.returnValue = "";
+            document.addEventListener("paste", (e) => {
+                e.preventDefault();
+                logCheat("paste attempt");
+            });
 
-    });
+        }
 
+        // =========================
+        // RIGHT CLICK DISABLE
+        // =========================
 
+        if (ac.disableRightClick) {
+
+            document.addEventListener("contextmenu", (e) => {
+                e.preventDefault();
+            });
+
+        }
+
+        // =========================
+        // FOCUS LOSS DETECTION
+        // =========================
+
+        let focusLoss = 0;
+
+        if (ac.focusLoss) {
+
+            window.addEventListener("blur", () => {
+
+                focusLoss++;
+
+                logCheat("focus lost");
+
+                if (focusLoss >= 3) {
+
+                    alert("Too many focus losses. Submitting test.");
+
+                    submitTest();
+
+                }
+
+            });
+
+        }
+
+        // =========================
+        // PAGE EXIT WARNING
+        // =========================
+
+        window.addEventListener("beforeunload", (e) => {
+
+            e.preventDefault();
+            e.returnValue = "";
+
+        });
 
         // =========================
         // HARD ANTI-RETAKE CHECK
         // =========================
 
-        const lockId =
-            id + "_" + studentEmail;
+        const lockId = id + "_" + studentEmail;
 
-        // 1. Check if already completed
         const resultsQuery = query(
             collection(db, "results"),
             where("testId", "==", id),
@@ -262,7 +294,6 @@ if (ac.focusLoss) {
 
         }
 
-        // 2. Check if one-attempt lock exists
         if (currentTest.lockOnOpen === true) {
 
             const openedRef =
@@ -282,7 +313,6 @@ if (ac.focusLoss) {
 
             }
 
-            // FIRST TIME OPEN → LOCK IT
             await setDoc(openedRef, {
 
                 testId: id,
@@ -326,7 +356,10 @@ if (ac.focusLoss) {
 
         renderTest();
 
+        // =========================
         // RESTORE ANSWERS
+        // =========================
+
         setTimeout(() => {
 
             Object.keys(savedAnswers).forEach((key) => {
@@ -354,31 +387,23 @@ if (ac.focusLoss) {
     }
 
 }
-// lock system
-    const attemptsRef = collection(db, "results");
 
-const attemptQuery = query(
-    attemptsRef,
-    where("testId", "==", id),
-    where("studentName", "==", studentEmail)
-);
+// =========================
+// CHEAT LOGGER
+// =========================
 
-const attemptSnap = await getDocs(attemptQuery);
+function logCheat(type) {
 
-const attemptCount = attemptSnap.size;
-
-    if (currentTest.attemptLimit !== 999) {
-
-    if (attemptCount >= currentTest.attemptLimit) {
-
-        document.getElementById("testContent").innerHTML = `
-            <h2>Access Denied</h2>
-            <p>You have used all allowed attempts.</p>
-        `;
-
-    
-
-    }
+    setDoc(doc(
+        db,
+        "cheatLogs",
+        testId + "_" + studentEmail + "_" + Date.now()
+    ), {
+        testId,
+        studentEmail,
+        type,
+        time: serverTimestamp()
+    });
 
 }
 
@@ -483,7 +508,15 @@ setInterval(async () => {
 
 window.submitTest = async function () {
 
+    const btn = document.querySelector(".btn-submit");
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Submitting...";
+    }
+
     let score = 0;
+
     const total = currentTest.questions.length;
 
     currentTest.questions.forEach((q, i) => {
@@ -499,8 +532,6 @@ window.submitTest = async function () {
 
     try {
 
-        // SAVE RESULT
-
         await addDoc(collection(db, "results"), {
 
             testId: testId,
@@ -513,8 +544,6 @@ window.submitTest = async function () {
 
         });
 
-        // MARK COMPLETE
-
         await setDoc(
             doc(db, "inProgressTests", testId + "_" + studentEmail),
             {
@@ -524,8 +553,6 @@ window.submitTest = async function () {
                 completedAt: serverTimestamp()
             }
         );
-
-        // CLEAR DRAFT
 
         await setDoc(
             doc(db, "testDrafts", testId + "_" + studentEmail),
@@ -541,7 +568,7 @@ window.submitTest = async function () {
                 You scored ${score} out of ${total}.
             </p>
 
-            <button onclick="window.close()">
+            <button onclick="window.location.href='student-logged-in.html'">
                 Return to Dashboard
             </button>
         `;
@@ -552,21 +579,14 @@ window.submitTest = async function () {
 
         alert("Error submitting: " + e.message);
 
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Finish & Submit";
+        }
+
     }
 
 };
-
-// =========================
-// TAB SWITCH WARNING
-// =========================
-
-document.addEventListener("visibilitychange", () => {
-
-    if (document.hidden) {
-        alert("Warning: Tab switching detected.");
-    }
-
-});
 
 </script>
 </body>
