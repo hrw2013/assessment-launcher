@@ -77,11 +77,13 @@ let savedAnswers = {};
 // EXIT CONTROL (NEW)
 // =========================
 
-let allowExit = true;
+let allowExit = false;
 
-// NO POPUP anymore unless enabled
 window.addEventListener("beforeunload", (e) => {
-    if (!allowExit) return;
+    if (!allowExit) {
+        e.preventDefault();
+        e.returnValue = "";
+    }
 });
 
 // =========================
@@ -160,36 +162,62 @@ async function loadTest(id) {
         // TAB SWITCH
         // =========================
 
-        if (ac.tabSwitch) {
+     let tabSwitchCount = 0;
+let maxTabs = ac.maxTabs ?? 3;
 
-            document.addEventListener("visibilitychange", () => {
+if (ac.tabSwitch) {
 
-                if (document.hidden) {
-                    logCheat("tab-switch");
+    document.addEventListener("visibilitychange", () => {
+
+        if (document.hidden) {
+
+            tabSwitchCount++;
+
+            logCheat("tab-switch");
+
+            if (tabSwitchCount >= maxTabs) {
+
+                if (ac.lockMode === "strict") {
+                    submitTest();
+                } else {
+                    alert("Warning: Tab switching detected.");
                 }
 
-            });
+            }
 
         }
+
+    });
+
+}
 
         // =========================
         // FULLSCREEN LOCK
         // =========================
 
-        if (ac.fullscreen) {
+      if (ac.fullscreen) {
 
-            const goFull = () => {
-                const el = document.documentElement;
-                if (el.requestFullscreen) el.requestFullscreen();
-            };
+    const goFull = async () => {
 
-            goFull();
+        const el = document.documentElement;
 
-            document.addEventListener("fullscreenchange", () => {
-                if (!document.fullscreenElement) goFull();
-            });
-
+        if (el.requestFullscreen) {
+            await el.requestFullscreen();
         }
+
+    };
+
+    goFull();
+
+    document.addEventListener("fullscreenchange", () => {
+
+        if (!document.fullscreenElement) {
+            goFull(); // forces re-entry loop
+        }
+
+    });
+
+}
 
         // =========================
         // COPY/PASTE BLOCK
@@ -351,6 +379,7 @@ function logCheat(type) {
             testId,
             studentEmail,
             type,
+            tabSwitches: tabSwitchCount || 0,
             time: serverTimestamp()
         }
     );
@@ -420,7 +449,8 @@ setInterval(async () => {
 
 window.submitTest = async function () {
 
-    allowExit = false; // disables leave popup
+    allowExit = true;
+    document.exitFullscreen?.();
 
     const btn = document.querySelector(".btn-submit");
     if (btn) {
