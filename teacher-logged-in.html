@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Teacher Dashboard</title>
 
 <style>
@@ -17,7 +20,6 @@ button { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; 
 .btn-delete { background: #ea4335; color: white; padding: 5px 10px; font-size: 12px; }
 input[type="checkbox"] { width: auto; margin-right: 8px; }
 </style>
-
 </head>
 
 <body>
@@ -25,6 +27,8 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 <div class="container">
 
 <h1>Teacher Dashboard</h1>
+
+<!-- CREATE TEST -->
 
 <div class="section">
 
@@ -36,10 +40,10 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
     <option value="">Select Class</option>
 </select>
 
-    
 <br><br>
-<br>
+
 <label><b>Max Attempts</b></label>
+
 <select id="attemptLimit">
     <option value="1">1 Attempt</option>
     <option value="2">2 Attempts</option>
@@ -47,31 +51,37 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
     <option value="5">5 Attempts</option>
     <option value="999">Unlimited</option>
 </select>
-<br><br>
-    
+
 <h3>Strict Mode Options</h3>
 
 <label><input type="checkbox" id="ac_tabSwitch"> Log tab switching</label><br>
 <label><input type="checkbox" id="ac_fullscreen"> Force fullscreen</label><br>
 <label><input type="checkbox" id="ac_copyPaste"> Detect copy/paste</label><br>
 <label><input type="checkbox" id="ac_disableRightClick"> Disable right click</label><br>
-<label><input type="checkbox" id="ac_focusLoss"> Track focus loss / auto-submit</label><br>
-<label>Max Tab Switches Before Auto-Submit</label><br> 
+<label><input type="checkbox" id="ac_focusLoss"> Track focus loss</label><br><br>
+
+<label>Max Tab Switches Before Auto Submit</label>
+
 <input id="ac_maxTabs" type="number" value="3" min="0" max="20">
-<label>Lock Mode</label> <br>
+
+<label>Lock Mode</label>
+
 <select id="ac_lockMode">
-    <option value="soft">Soft Lock (warn only)</option> <br>
+    <option value="soft">Soft Lock (warn only)</option>
     <option value="strict">Strict (auto-submit)</option>
 </select>
-<br>
-<br>
+
+<br><br>
+
 <div id="questions"></div>
 
-<button class="btn-add" onclick="addQuestion()">+ Add Question</button>
+<button class="btn-add" id="addQuestionBtn">+ Add Question</button>
 
-<button class="btn-save" onclick="saveTest()">Save Test</button>
+<button class="btn-save" id="saveTestBtn">Save Test</button>
 
 </div>
+
+<!-- SAVED TESTS -->
 
 <div class="section">
 
@@ -81,19 +91,31 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 
 </div>
 
+<!-- CLASSES -->
+
+<div class="section">
+
+<h2>Classes</h2>
+
+<input id="className" placeholder="Class Name">
+
+<button class="btn-add" id="createClassBtn">Create Class</button>
+
+<div id="classList">Loading classes...</div>
+
 </div>
 
-    <h2>Classes</h2>
-<div id="classList">Loading classes...</div>
-    
+</div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
 import {
     getAuth,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
 import {
     getFirestore,
     collection,
@@ -105,21 +127,32 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+
+    apiKey: "YOUR_API_KEY",
     authDomain: "assessment-launcher439.firebaseapp.com",
     projectId: "assessment-launcher439",
     storageBucket: "assessment-launcher439.firebasestorage.app",
     messagingSenderId: "654911094206",
     appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+
 };
 
 const app = initializeApp(firebaseConfig);
+
 const auth = getAuth(app);
+
 const db = getFirestore(app);
 
 let currentUser = null;
 
-// AUTH SAFE
+const questionsDiv = document.getElementById("questions");
+
+document.getElementById("addQuestionBtn").addEventListener("click", addQuestion);
+
+document.getElementById("saveTestBtn").addEventListener("click", saveTest);
+
+document.getElementById("createClassBtn").addEventListener("click", createClass);
+
 onAuthStateChanged(auth, async (user) => {
 
     if (!user) {
@@ -129,107 +162,172 @@ onAuthStateChanged(auth, async (user) => {
 
     currentUser = user;
 
-    await loadTests();
     await loadClasses();
 
+    await loadTests();
+
 });
-    // load classes
 
-   window.loadClasses = async function () {
+function addQuestion(){
 
-    const list = document.getElementById("classList");
+    const div = document.createElement("div");
 
-    try {
+    div.className = "card";
 
-        const snap = await getDocs(collection(db, "classes"));
+    div.innerHTML = `
+        <input class="question-input" placeholder="Question">
 
-        list.innerHTML = "";
+        <input class="question-input" placeholder="Answer A">
 
-        if (snap.empty) {
-            list.innerHTML = "<p>No classes yet.</p>";
+        <input class="question-input" placeholder="Answer B">
+
+        <input class="question-input" placeholder="Answer C">
+
+        <input class="question-input" placeholder="Answer D">
+
+        <input class="question-input" placeholder="Correct Answer (A/B/C/D)">
+
+        <button class="btn-delete remove-question">Delete Question</button>
+    `;
+
+    div.querySelector(".remove-question").addEventListener("click", () => {
+        div.remove();
+    });
+
+    questionsDiv.appendChild(div);
+
+}
+
+async function saveTest(){
+
+    try{
+
+        if(!currentUser){
+            alert("Not logged in");
             return;
         }
 
-        snap.forEach(c => {
+        const testName = document.getElementById("testName").value.trim();
 
-            const d = c.data();
+        if(testName === ""){
+            alert("Enter a test name");
+            return;
+        }
 
-            const div = document.createElement("div");
-            div.className = "card";
+        const cards = document.querySelectorAll("#questions .card");
 
-            div.innerHTML = `
-                <b>${d.className || "Untitled Class"}</b><br><br>
-                <small>Students: ${(d.students || []).length}</small>
-            `;
+        if(cards.length === 0){
+            alert("Add at least one question");
+            return;
+        }
 
-            list.appendChild(div);
+        const questions = [];
+
+        cards.forEach(card => {
+
+            const inputs = card.querySelectorAll("input");
+
+            questions.push({
+                q: inputs[0].value,
+                a: inputs[1].value,
+                b: inputs[2].value,
+                c: inputs[3].value,
+                d: inputs[4].value,
+                correct: inputs[5].value.toUpperCase()
+            });
 
         });
 
-    } catch (err) {
+        await addDoc(collection(db, "tests"), {
 
-        console.error("LOAD CLASSES ERROR:", err);
-        list.innerHTML = "<p>Error loading classes.</p>";
+            testName: testName,
+
+            teacherId: currentUser.uid,
+
+            questions: questions,
+
+            createdAt: serverTimestamp(),
+
+            attemptLimit: parseInt(document.getElementById("attemptLimit").value),
+
+            antiCheatSettings: {
+
+                tabSwitch: document.getElementById("ac_tabSwitch").checked,
+
+                fullscreen: document.getElementById("ac_fullscreen").checked,
+
+                copyPaste: document.getElementById("ac_copyPaste").checked,
+
+                disableRightClick: document.getElementById("ac_disableRightClick").checked,
+
+                focusLoss: document.getElementById("ac_focusLoss").checked,
+
+                maxTabs: parseInt(document.getElementById("ac_maxTabs").value),
+
+                lockMode: document.getElementById("ac_lockMode").value
+
+            }
+
+        });
+
+        alert("Test saved!");
+
+        document.getElementById("testName").value = "";
+
+        questionsDiv.innerHTML = "";
+
+        loadTests();
+
+    }catch(err){
+
+        console.error(err);
+
+        alert("Error saving test");
 
     }
 
-};
+}
 
-    // create class
-
-window.createClass = async function () {
-
-    const name = document.getElementById("className").value;
-
-    if (!name) return alert("Enter class name");
-
-    await addDoc(collection(db, "classes"), {
-        className: name,
-        teacherId: currentUser.uid,
-        students: []
-    });
-
-    document.getElementById("className").value = "";
-
-    loadClasses(); // 🔥 refresh immediately
-
-};
-    
-// LOAD TESTS
-window.loadTests = async function () {
+async function loadTests(){
 
     const list = document.getElementById("testList");
 
-    try {
+    try{
 
         const snap = await getDocs(collection(db, "tests"));
 
         list.innerHTML = "";
 
-        if (snap.empty) {
+        if(snap.empty){
+
             list.innerHTML = "<p>No tests yet.</p>";
+
             return;
+
         }
 
-        snap.forEach(t => {
+        snap.forEach(test => {
 
-            const d = t.data();
+            const data = test.data();
 
             const div = document.createElement("div");
+
             div.className = "card";
 
             div.innerHTML = `
-                <b>${d.testName || "Untitled"}</b><br><br>
+                <b>${data.testName}</b>
 
-                <button onclick="window.location.href='test-results.html?id=${t.id}'">
+                <br><br>
+
+                <button class="btn-results" onclick="window.location.href='test-results.html?id=${test.id}'">
                     View Results
                 </button>
 
-                <button onclick="openStudentView('${t.id}')">
+                <button onclick="window.open('student-assessment.html?id=${test.id}','_blank')">
                     Student View
                 </button>
 
-                <button class="btn-delete" onclick="deleteTest('${t.id}')">
+                <button class="btn-delete" onclick="deleteTest('${test.id}')">
                     Delete
                 </button>
             `;
@@ -238,101 +336,135 @@ window.loadTests = async function () {
 
         });
 
-    } catch (err) {
+    }catch(err){
 
-        console.error("LOAD TESTS ERROR:", err);
+        console.error(err);
+
         list.innerHTML = "<p>Error loading tests.</p>";
+
+    }
+
+}
+
+window.deleteTest = async function(id){
+
+    try{
+
+        await deleteDoc(doc(db, "tests", id));
+
+        loadTests();
+
+    }catch(err){
+
+        console.error(err);
+
+        alert("Delete failed");
 
     }
 
 };
 
+async function createClass(){
 
-// ADD QUESTION
-window.addQuestion = function () {
+    try{
 
-    const div = document.createElement("div");
-    div.className = "card";
+        if(!currentUser){
+            alert("Not logged in");
+            return;
+        }
 
-    div.innerHTML = `
-        <input placeholder="Question">
-        <input placeholder="A">
-        <input placeholder="B">
-        <input placeholder="C">
-        <input placeholder="D">
-        <input placeholder="Correct (A/B/C/D)">
-    `;
+        const className = document.getElementById("className").value.trim();
 
-    document.getElementById("questions").appendChild(div);
+        if(className === ""){
+            alert("Enter class name");
+            return;
+        }
 
-};
+        await addDoc(collection(db, "classes"), {
 
+            className: className,
 
-// SAVE TEST (WITH CHECKBOXES)
-window.saveTest = async function () {
+            teacherId: currentUser.uid,
 
-    if (!currentUser) return;
+            students: [],
 
-    const name = document.getElementById("testName").value;
+            createdAt: serverTimestamp()
 
-    const cards = document.querySelectorAll("#questions .card");
+        });
 
-    const questions = Array.from(cards).map(c => {
+        document.getElementById("className").value = "";
 
-        const i = c.querySelectorAll("input");
+        loadClasses();
 
-        return {
-            q: i[0]?.value || "",
-            a: i[1]?.value || "",
-            b: i[2]?.value || "",
-            c: i[3]?.value || "",
-            d: i[4]?.value || "",
-            correct: (i[5]?.value || "").toUpperCase()
-        };
+    }catch(err){
 
-    });
+        console.error(err);
 
-    await addDoc(collection(db, "tests"), {
+        alert("Error creating class");
 
-        testName: name,
-        questions: questions,
-        teacherId: currentUser.uid,
-        createdAt: serverTimestamp(),
+    }
 
-       attemptLimit: parseInt(document.getElementById("attemptLimit").value),
-
-        antiCheatSettings: {
-    tabSwitch: document.getElementById("ac_tabSwitch").checked,
-    fullscreen: document.getElementById("ac_fullscreen").checked,
-    copyPaste: document.getElementById("ac_copyPaste").checked,
-    disableRightClick: document.getElementById("ac_disableRightClick").checked,
-    focusLoss: document.getElementById("ac_focusLoss").checked,
-
-    maxTabs: parseInt(document.getElementById("ac_maxTabs").value || "3"),
-    lockMode: document.getElementById("ac_lockMode").value
 }
 
-alert("Saved!");
-loadTests();
+async function loadClasses(){
 
-};
+    const list = document.getElementById("classList");
 
-// DELETE TEST
-window.deleteTest = async function (id) {
+    const select = document.getElementById("classSelect");
 
-    await deleteDoc(doc(db, "tests", id));
+    try{
 
-    loadTests();
+        const snap = await getDocs(collection(db, "classes"));
 
-};
+        list.innerHTML = "";
 
+        select.innerHTML = `<option value="">Select Class</option>`;
 
-// STUDENT VIEW
-window.openStudentView = function (id) {
+        if(snap.empty){
 
-    window.open(`student-assessment.html?id=${id}`, "_blank");
+            list.innerHTML = "<p>No classes yet.</p>";
 
-};
+            return;
+
+        }
+
+        snap.forEach(c => {
+
+            const data = c.data();
+
+            const div = document.createElement("div");
+
+            div.className = "card";
+
+            div.innerHTML = `
+                <b>${data.className}</b>
+
+                <br><br>
+
+                Students: ${(data.students || []).length}
+            `;
+
+            list.appendChild(div);
+
+            const option = document.createElement("option");
+
+            option.value = c.id;
+
+            option.textContent = data.className;
+
+            select.appendChild(option);
+
+        });
+
+    }catch(err){
+
+        console.error(err);
+
+        list.innerHTML = "<p>Error loading classes.</p>";
+
+    }
+
+}
 
 </script>
 
