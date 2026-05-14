@@ -13,28 +13,24 @@
         .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; }
         .loading { font-style: italic; color: #666; }
     </style>
-
 </head>
+
 <body>
 
 <div class="container">
-
     <div id="testContent">
         <p class="loading">Loading your assessment...</p>
     </div>
-
 </div>
 
 <script type="module">
 
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
 import {
     getAuth,
     onAuthStateChanged
-}
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 import {
     getFirestore,
@@ -47,22 +43,19 @@ import {
     query,
     where,
     getDocs
-}
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // =========================
 // FIREBASE
 // =========================
 
 const firebaseConfig = {
-
     apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
     authDomain: "assessment-launcher439.firebaseapp.com",
     projectId: "assessment-launcher439",
     storageBucket: "assessment-launcher439.firebasestorage.app",
     messagingSenderId: "654911094206",
     appId: "1:654911094206:web:bf85399538c256c9c2cdef"
-
 };
 
 const app = initializeApp(firebaseConfig);
@@ -81,27 +74,33 @@ let studentEmail = "";
 let savedAnswers = {};
 
 // =========================
+// EXIT CONTROL (NEW)
+// =========================
+
+let allowExit = true;
+
+// NO POPUP anymore unless enabled
+window.addEventListener("beforeunload", (e) => {
+    if (!allowExit) return;
+});
+
+// =========================
 // AUTH
 // =========================
 
 onAuthStateChanged(auth, async (user) => {
 
     if (!user) {
-
         window.location.href = "student.html";
         return;
-
     }
 
     studentEmail = user.email;
 
     if (!testId) {
-
         document.getElementById("testContent").innerHTML =
             "<h2>No test ID provided.</h2>";
-
         return;
-
     }
 
     await loadTest(testId);
@@ -144,25 +143,21 @@ async function loadTest(id) {
 
         const attemptCount = attemptSnap.size;
 
-        if (currentTest.attemptLimit !== 999) {
+        if (currentTest.attemptLimit !== 999 && attemptCount >= currentTest.attemptLimit) {
 
-            if (attemptCount >= currentTest.attemptLimit) {
+            document.getElementById("testContent").innerHTML = `
+                <h2>Access Denied</h2>
+                <p>You have used all allowed attempts.</p>
+            `;
 
-                document.getElementById("testContent").innerHTML = `
-                    <h2>Access Denied</h2>
-                    <p>You have used all allowed attempts.</p>
-                `;
-
-                return;
-
-            }
+            return;
 
         }
 
         const ac = currentTest.antiCheatSettings || {};
 
         // =========================
-        // TAB SWITCH DETECTION
+        // TAB SWITCH
         // =========================
 
         if (ac.tabSwitch) {
@@ -170,11 +165,7 @@ async function loadTest(id) {
             document.addEventListener("visibilitychange", () => {
 
                 if (document.hidden) {
-
                     logCheat("tab-switch");
-
-                    alert("Warning: Tab switching detected.");
-
                 }
 
             });
@@ -182,53 +173,38 @@ async function loadTest(id) {
         }
 
         // =========================
-        // FULLSCREEN
+        // FULLSCREEN LOCK
         // =========================
 
         if (ac.fullscreen) {
 
             const goFull = () => {
-
                 const el = document.documentElement;
-
-                if (el.requestFullscreen) {
-                    el.requestFullscreen();
-                }
-
+                if (el.requestFullscreen) el.requestFullscreen();
             };
 
             goFull();
 
             document.addEventListener("fullscreenchange", () => {
-
-                if (!document.fullscreenElement) {
-                    goFull();
-                }
-
+                if (!document.fullscreenElement) goFull();
             });
 
         }
 
         // =========================
-        // COPY / PASTE BLOCK
+        // COPY/PASTE BLOCK
         // =========================
 
         if (ac.copyPaste) {
 
             document.addEventListener("copy", (e) => {
-
                 e.preventDefault();
-
-                logCheat("copy-attempt");
-
+                logCheat("copy");
             });
 
             document.addEventListener("paste", (e) => {
-
                 e.preventDefault();
-
-                logCheat("paste-attempt");
-
+                logCheat("paste");
             });
 
         }
@@ -240,9 +216,7 @@ async function loadTest(id) {
         if (ac.disableRightClick) {
 
             document.addEventListener("contextmenu", (e) => {
-
                 e.preventDefault();
-
             });
 
         }
@@ -258,15 +232,10 @@ async function loadTest(id) {
             window.addEventListener("blur", () => {
 
                 focusLoss++;
-
                 logCheat("focus-loss");
 
                 if (focusLoss >= 3) {
-
-                    alert("Too many focus losses. Auto-submitting.");
-
                     submitTest();
-
                 }
 
             });
@@ -274,71 +243,47 @@ async function loadTest(id) {
         }
 
         // =========================
-        // EXIT WARNING
-        // =========================
-
-        window.addEventListener("beforeunload", (e) => {
-
-            e.preventDefault();
-            e.returnValue = "";
-
-        });
-
-        // =========================
         // LOCK SYSTEM
         // =========================
 
         const lockId = id + "_" + studentEmail;
 
-        const previousResultsQuery = query(
-            collection(db, "results"),
-            where("testId", "==", id),
-            where("studentName", "==", studentEmail)
+        const previousResultsSnap = await getDocs(
+            query(
+                collection(db, "results"),
+                where("testId", "==", id),
+                where("studentName", "==", studentEmail)
+            )
         );
 
-        const previousResultsSnap =
-            await getDocs(previousResultsQuery);
+        if (currentTest.lockOnOpen && previousResultsSnap.size > 0) {
 
-        if (
-            previousResultsSnap.size > 0 &&
-            currentTest.lockOnOpen === true
-        ) {
-
-            document.getElementById("testContent").innerHTML = `
-                <h2>Access Denied</h2>
-                <p>You have already completed this assessment.</p>
-            `;
+            document.getElementById("testContent").innerHTML =
+                "<h2>Already completed this assessment.</h2>";
 
             return;
 
         }
 
-        if (currentTest.lockOnOpen === true) {
+        if (currentTest.lockOnOpen) {
 
-            const openedRef =
-                doc(db, "openedTests", lockId);
-
-            const openedSnap =
-                await getDoc(openedRef);
+            const openedRef = doc(db, "openedTests", lockId);
+            const openedSnap = await getDoc(openedRef);
 
             if (openedSnap.exists()) {
 
-                document.getElementById("testContent").innerHTML = `
-                    <h2>Access Denied</h2>
-                    <p>This assessment can only be opened once.</p>
-                `;
+                document.getElementById("testContent").innerHTML =
+                    "<h2>This test can only be opened once.</h2>";
 
                 return;
 
             }
 
             await setDoc(openedRef, {
-
                 testId: id,
-                studentEmail: studentEmail,
+                studentEmail,
                 openedAt: serverTimestamp(),
                 locked: true
-
             });
 
         }
@@ -351,53 +296,33 @@ async function loadTest(id) {
             doc(db, "inProgressTests", lockId),
             {
                 testId: id,
-                studentEmail: studentEmail,
+                studentEmail,
                 status: "in-progress",
                 startedAt: serverTimestamp()
             }
         );
 
         // =========================
-        // LOAD SAVED DRAFT
+        // LOAD DRAFT
         // =========================
 
-        const draftRef =
-            doc(db, "testDrafts", lockId);
-
-        const draftSnap =
-            await getDoc(draftRef);
+        const draftSnap = await getDoc(doc(db, "testDrafts", lockId));
 
         if (draftSnap.exists()) {
-
-            savedAnswers =
-                draftSnap.data().answers || {};
-
+            savedAnswers = draftSnap.data().answers || {};
         }
 
-        // =========================
-        // RENDER
-        // =========================
-
         renderTest();
-
-        // =========================
-        // RESTORE ANSWERS
-        // =========================
 
         setTimeout(() => {
 
             Object.keys(savedAnswers).forEach((key) => {
 
-                const value = savedAnswers[key];
+                const input = document.querySelector(
+                    `input[name="${key}"][value="${savedAnswers[key]}"]`
+                );
 
-                const input =
-                    document.querySelector(
-                        `input[name="${key}"][value="${value}"]`
-                    );
-
-                if (input) {
-                    input.checked = true;
-                }
+                if (input) input.checked = true;
 
             });
 
@@ -405,7 +330,7 @@ async function loadTest(id) {
 
     } catch (e) {
 
-        console.error("LOAD TEST ERROR:", e);
+        console.error(e);
 
         document.getElementById("testContent").innerHTML =
             "<h2>Error loading assessment.</h2>";
@@ -421,11 +346,7 @@ async function loadTest(id) {
 function logCheat(type) {
 
     setDoc(
-        doc(
-            db,
-            "cheatLogs",
-            testId + "_" + studentEmail + "_" + Date.now()
-        ),
+        doc(db, "cheatLogs", testId + "_" + studentEmail + "_" + Date.now()),
         {
             testId,
             studentEmail,
@@ -437,57 +358,30 @@ function logCheat(type) {
 }
 
 // =========================
-// RENDER TEST
+// RENDER
 // =========================
 
 function renderTest() {
 
-    let html = `
-        <h1>${currentTest.testName}</h1>
-    `;
+    let html = `<h1>${currentTest.testName}</h1>`;
 
     currentTest.questions.forEach((q, i) => {
 
         html += `
+        <div class="q-block">
 
-            <div class="q-block">
+            <p><strong>${i + 1}. ${q.q}</strong></p>
 
-                <p>
-                    <strong>${i + 1}. ${q.q}</strong>
-                </p>
+            <label class="option"><input type="radio" name="q${i}" value="A"> ${q.a}</label>
+            <label class="option"><input type="radio" name="q${i}" value="B"> ${q.b}</label>
+            <label class="option"><input type="radio" name="q${i}" value="C"> ${q.c}</label>
+            <label class="option"><input type="radio" name="q${i}" value="D"> ${q.d}</label>
 
-                <label class="option">
-                    <input type="radio" name="q${i}" value="A">
-                    ${q.a}
-                </label>
-
-                <label class="option">
-                    <input type="radio" name="q${i}" value="B">
-                    ${q.b}
-                </label>
-
-                <label class="option">
-                    <input type="radio" name="q${i}" value="C">
-                    ${q.c}
-                </label>
-
-                <label class="option">
-                    <input type="radio" name="q${i}" value="D">
-                    ${q.d}
-                </label>
-
-            </div>
-
-        `;
-
+        </div>`;
     });
 
     html += `
-
-        <button class="btn-submit" onclick="submitTest()">
-            Finish & Submit
-        </button>
-
+        <button class="btn-submit" onclick="submitTest()">Finish & Submit</button>
     `;
 
     document.getElementById("testContent").innerHTML = html;
@@ -495,163 +389,79 @@ function renderTest() {
 }
 
 // =========================
-// AUTOSAVE
+// AUTO SAVE
 // =========================
 
 setInterval(async () => {
 
-    if (!currentTest || !studentEmail) return;
+    if (!currentTest) return;
 
     const answers = {};
 
     currentTest.questions.forEach((q, i) => {
 
-        const selected =
-            document.querySelector(`input[name="q${i}"]:checked`);
-
-        if (selected) {
-
-            answers[`q${i}`] = selected.value;
-
-        }
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected) answers[`q${i}`] = selected.value;
 
     });
 
-    try {
-
-        await setDoc(
-            doc(
-                db,
-                "testDrafts",
-                testId + "_" + studentEmail
-            ),
-            {
-                testId,
-                studentEmail,
-                answers,
-                updatedAt: serverTimestamp()
-            }
-        );
-
-    } catch (e) {
-
-        console.error("AUTOSAVE ERROR:", e);
-
-    }
+    await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
+        testId,
+        studentEmail,
+        answers,
+        updatedAt: serverTimestamp()
+    });
 
 }, 5000);
 
 // =========================
-// SUBMIT TEST
+// SUBMIT
 // =========================
 
 window.submitTest = async function () {
 
-    const btn =
-        document.querySelector(".btn-submit");
+    allowExit = false; // disables leave popup
 
+    const btn = document.querySelector(".btn-submit");
     if (btn) {
-
         btn.disabled = true;
         btn.innerText = "Submitting...";
-
     }
 
     let score = 0;
-
-    const total =
-        currentTest.questions.length;
+    const total = currentTest.questions.length;
 
     currentTest.questions.forEach((q, i) => {
 
-        const selected =
-            document.querySelector(`input[name="q${i}"]:checked`);
-
-        if (
-            selected &&
-            selected.value === q.correct
-        ) {
-
-            score++;
-
-        }
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && selected.value === q.correct) score++;
 
     });
 
-    try {
+    await addDoc(collection(db, "results"), {
+        testId,
+        testName: currentTest.testName,
+        studentName: studentEmail,
+        score,
+        total,
+        percentage: Math.round((score / total) * 100),
+        completedAt: serverTimestamp()
+    });
 
-        // SAVE RESULT
+    await setDoc(doc(db, "inProgressTests", testId + "_" + studentEmail), {
+        testId,
+        studentEmail,
+        status: "completed",
+        completedAt: serverTimestamp()
+    });
 
-        await addDoc(
-            collection(db, "results"),
-            {
-                testId,
-                testName: currentTest.testName,
-                studentName: studentEmail,
-                score,
-                total,
-                percentage: Math.round((score / total) * 100),
-                completedAt: serverTimestamp()
-            }
-        );
+    await setDoc(doc(db, "testDrafts", testId + "_" + studentEmail), {
+        cleared: true
+    });
 
-        // MARK COMPLETE
-
-        await setDoc(
-            doc(
-                db,
-                "inProgressTests",
-                testId + "_" + studentEmail
-            ),
-            {
-                testId,
-                studentEmail,
-                status: "completed",
-                completedAt: serverTimestamp()
-            }
-        );
-
-        // CLEAR DRAFT
-
-        await setDoc(
-            doc(
-                db,
-                "testDrafts",
-                testId + "_" + studentEmail
-            ),
-            {
-                cleared: true
-            }
-        );
-
-        document.getElementById("testContent").innerHTML = `
-
-            <h2>Submitted!</h2>
-
-            <p>
-                You scored ${score} out of ${total}.
-            </p>
-
-            <button onclick="window.location.href='student-logged-in.html'">
-                Return to Dashboard
-            </button>
-
-        `;
-
-    } catch (e) {
-
-        console.error("SUBMIT ERROR:", e);
-
-        alert("Error submitting: " + e.message);
-
-        if (btn) {
-
-            btn.disabled = false;
-            btn.innerText = "Finish & Submit";
-
-        }
-
-    }
+    // CLOSE WINDOW (works if opened by window.open)
+    window.open('', '_self');
+    window.close();
 
 };
 
