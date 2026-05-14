@@ -1,25 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Teacher Dashboard</title>
 
 <style>
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background-color: #f0f2f5; color: #333; }
-.container { max-width: 900px; margin: auto; }
-.section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 30px; }
-h1, h2 { color: #1a73e8; }
-input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-.card { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; margin: 10px 0; border-radius: 8px; position: relative; }
-button { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; margin-right: 10px; }
-.btn-add { background: #34a853; color: white; }
-.btn-save { background: #1a73e8; color: white; width: 100%; margin-top: 20px; }
-.btn-results { background: #fbbc05; color: #333; }
-.btn-delete { background: #ea4335; color: white; padding: 5px 10px; font-size: 12px; }
-input[type="checkbox"] { width: auto; margin-right: 8px; }
+
+body{
+    font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    background:#f0f2f5;
+    padding:30px;
+    color:#333;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+}
+
+.section{
+    background:white;
+    padding:25px;
+    border-radius:12px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.08);
+    margin-bottom:30px;
+}
+
+h1,h2,h3{
+    color:#1a73e8;
+}
+
+input,select{
+    width:100%;
+    padding:12px;
+    margin:8px 0;
+    border:1px solid #ddd;
+    border-radius:6px;
+    box-sizing:border-box;
+}
+
+button{
+    padding:12px 20px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:bold;
+    margin-top:10px;
+    margin-right:10px;
+}
+
+button:hover{
+    opacity:0.9;
+}
+
+.btn-add{
+    background:#34a853;
+    color:white;
+}
+
+.btn-save{
+    background:#1a73e8;
+    color:white;
+    width:100%;
+}
+
+.btn-delete{
+    background:#ea4335;
+    color:white;
+}
+
+.btn-results{
+    background:#fbbc05;
+    color:black;
+}
+
+.card{
+    background:#f8f9fa;
+    border:1px solid #ddd;
+    border-radius:8px;
+    padding:15px;
+    margin-top:15px;
+}
+
+input[type="checkbox"]{
+    width:auto;
+    margin-right:8px;
+}
+
 </style>
+
 </head>
 
 <body>
@@ -62,22 +134,26 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 
 <label>Max Tab Switches Before Auto Submit</label>
 
-<input id="ac_maxTabs" type="number" value="3" min="0" max="20">
+<input id="ac_maxTabs" type="number" value="3">
 
 <label>Lock Mode</label>
 
 <select id="ac_lockMode">
-    <option value="soft">Soft Lock (warn only)</option>
-    <option value="strict">Strict (auto-submit)</option>
+    <option value="soft">Soft Lock</option>
+    <option value="strict">Strict Lock</option>
 </select>
 
 <br><br>
 
 <div id="questions"></div>
 
-<button class="btn-add" id="addQuestionBtn">+ Add Question</button>
+<button class="btn-add" id="addQuestionBtn">
++ Add Question
+</button>
 
-<button class="btn-save" id="saveTestBtn">Save Test</button>
+<button class="btn-save" id="saveTestBtn">
+Save Test
+</button>
 
 </div>
 
@@ -87,7 +163,9 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 
 <h2>Saved Tests</h2>
 
-<div id="testList">Loading...</div>
+<div id="testList">
+Loading tests...
+</div>
 
 </div>
 
@@ -99,9 +177,13 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 
 <input id="className" placeholder="Class Name">
 
-<button class="btn-add" id="createClassBtn">Create Class</button>
+<button class="btn-add" id="createClassBtn">
+Create Class
+</button>
 
-<div id="classList">Loading classes...</div>
+<div id="classList">
+Loading classes...
+</div>
 
 </div>
 
@@ -113,7 +195,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 
 import {
     getAuth,
-    onAuthStateChanged
+    onAuthStateChanged,
+    setPersistence,
+    browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 import {
@@ -128,12 +212,12 @@ import {
 
 const firebaseConfig = {
 
- apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
-  authDomain: "assessment-launcher439.firebaseapp.com",
-  projectId: "assessment-launcher439",
-  storageBucket: "assessment-launcher439.firebasestorage.app",
-  messagingSenderId: "654911094206",
-  appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+    apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
+    authDomain: "assessment-launcher439.firebaseapp.com",
+    projectId: "assessment-launcher439",
+    storageBucket: "assessment-launcher439.firebasestorage.app",
+    messagingSenderId: "654911094206",
+    appId: "1:654911094206:web:bf85399538c256c9c2cdef"
 
 };
 
@@ -142,6 +226,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 const db = getFirestore(app);
+
+await setPersistence(auth, browserLocalPersistence);
 
 let currentUser = null;
 
@@ -153,17 +239,31 @@ document.getElementById("saveTestBtn").addEventListener("click", saveTest);
 
 document.getElementById("createClassBtn").addEventListener("click", createClass);
 
-// AUTH SAFE 
-    onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-            window.location.href = "teacher.html";
-            return; 
-        } 
-        
-        currentUser = user; 
-        await loadTests(); 
+onAuthStateChanged(auth, async (user) => {
+
+    console.log("AUTH STATE:", user);
+
+    if(user){
+
+        currentUser = user;
+
         await loadClasses();
-    });
+
+        await loadTests();
+
+    } else {
+
+        setTimeout(() => {
+
+            if(!auth.currentUser){
+                window.location.href = "teacher.html";
+            }
+
+        }, 1500);
+
+    }
+
+});
 
 function addQuestion(){
 
@@ -172,22 +272,26 @@ function addQuestion(){
     div.className = "card";
 
     div.innerHTML = `
-        <input class="question-input" placeholder="Question">
 
-        <input class="question-input" placeholder="Answer A">
+        <input placeholder="Question">
 
-        <input class="question-input" placeholder="Answer B">
+        <input placeholder="Answer A">
 
-        <input class="question-input" placeholder="Answer C">
+        <input placeholder="Answer B">
 
-        <input class="question-input" placeholder="Answer D">
+        <input placeholder="Answer C">
 
-        <input class="question-input" placeholder="Correct Answer (A/B/C/D)">
+        <input placeholder="Answer D">
 
-        <button class="btn-delete remove-question">Delete Question</button>
+        <input placeholder="Correct Answer (A/B/C/D)">
+
+        <button class="btn-delete removeBtn">
+            Delete Question
+        </button>
+
     `;
 
-    div.querySelector(".remove-question").addEventListener("click", () => {
+    div.querySelector(".removeBtn").addEventListener("click", () => {
         div.remove();
     });
 
@@ -200,7 +304,7 @@ async function saveTest(){
     try{
 
         if(!currentUser){
-            alert("Not logged in");
+            alert("You are not logged in");
             return;
         }
 
@@ -225,12 +329,14 @@ async function saveTest(){
             const inputs = card.querySelectorAll("input");
 
             questions.push({
+
                 q: inputs[0].value,
                 a: inputs[1].value,
                 b: inputs[2].value,
                 c: inputs[3].value,
                 d: inputs[4].value,
                 correct: inputs[5].value.toUpperCase()
+
             });
 
         });
@@ -241,27 +347,38 @@ async function saveTest(){
 
             teacherId: currentUser.uid,
 
-            questions: questions,
-
             createdAt: serverTimestamp(),
 
-            attemptLimit: parseInt(document.getElementById("attemptLimit").value),
+            questions: questions,
+
+            attemptLimit: parseInt(
+                document.getElementById("attemptLimit").value
+            ),
 
             antiCheatSettings: {
 
-                tabSwitch: document.getElementById("ac_tabSwitch").checked,
+                tabSwitch:
+                    document.getElementById("ac_tabSwitch").checked,
 
-                fullscreen: document.getElementById("ac_fullscreen").checked,
+                fullscreen:
+                    document.getElementById("ac_fullscreen").checked,
 
-                copyPaste: document.getElementById("ac_copyPaste").checked,
+                copyPaste:
+                    document.getElementById("ac_copyPaste").checked,
 
-                disableRightClick: document.getElementById("ac_disableRightClick").checked,
+                disableRightClick:
+                    document.getElementById("ac_disableRightClick").checked,
 
-                focusLoss: document.getElementById("ac_focusLoss").checked,
+                focusLoss:
+                    document.getElementById("ac_focusLoss").checked,
 
-                maxTabs: parseInt(document.getElementById("ac_maxTabs").value),
+                maxTabs:
+                    parseInt(
+                        document.getElementById("ac_maxTabs").value
+                    ),
 
-                lockMode: document.getElementById("ac_lockMode").value
+                lockMode:
+                    document.getElementById("ac_lockMode").value
 
             }
 
@@ -275,7 +392,7 @@ async function saveTest(){
 
         loadTests();
 
-    }catch(err){
+    } catch(err){
 
         console.error(err);
 
@@ -312,28 +429,33 @@ async function loadTests(){
             div.className = "card";
 
             div.innerHTML = `
+
                 <b>${data.testName}</b>
 
                 <br><br>
 
-                <button class="btn-results" onclick="window.location.href='test-results.html?id=${test.id}'">
+                <button class="btn-results"
+                onclick="window.location.href='test-results.html?id=${test.id}'">
                     View Results
                 </button>
 
-                <button onclick="window.open('student-assessment.html?id=${test.id}','_blank')">
+                <button
+                onclick="window.open('student-assessment.html?id=${test.id}','_blank')">
                     Student View
                 </button>
 
-                <button class="btn-delete" onclick="deleteTest('${test.id}')">
+                <button class="btn-delete"
+                onclick="deleteTest('${test.id}')">
                     Delete
                 </button>
+
             `;
 
             list.appendChild(div);
 
         });
 
-    }catch(err){
+    } catch(err){
 
         console.error(err);
 
@@ -351,11 +473,11 @@ window.deleteTest = async function(id){
 
         loadTests();
 
-    }catch(err){
+    } catch(err){
 
         console.error(err);
 
-        alert("Delete failed");
+        alert("Failed to delete");
 
     }
 
@@ -370,7 +492,8 @@ async function createClass(){
             return;
         }
 
-        const className = document.getElementById("className").value.trim();
+        const className =
+            document.getElementById("className").value.trim();
 
         if(className === ""){
             alert("Enter class name");
@@ -393,7 +516,7 @@ async function createClass(){
 
         loadClasses();
 
-    }catch(err){
+    } catch(err){
 
         console.error(err);
 
@@ -415,7 +538,8 @@ async function loadClasses(){
 
         list.innerHTML = "";
 
-        select.innerHTML = `<option value="">Select Class</option>`;
+        select.innerHTML =
+            `<option value="">Select Class</option>`;
 
         if(snap.empty){
 
@@ -434,11 +558,14 @@ async function loadClasses(){
             div.className = "card";
 
             div.innerHTML = `
+
                 <b>${data.className}</b>
 
                 <br><br>
 
-                Students: ${(data.students || []).length}
+                Students:
+                ${(data.students || []).length}
+
             `;
 
             list.appendChild(div);
@@ -453,7 +580,7 @@ async function loadClasses(){
 
         });
 
-    }catch(err){
+    } catch(err){
 
         console.error(err);
 
