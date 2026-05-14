@@ -120,7 +120,7 @@ const db = getFirestore(app);
 let currentUser = null;
 
 // AUTH SAFE
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
 
     if (!user) {
         window.location.href = "teacher.html";
@@ -129,43 +129,49 @@ onAuthStateChanged(auth, (user) => {
 
     currentUser = user;
 
-    loadTests();
-    loadClasses();
-});
+    await loadTests();
+    await loadClasses();
 
+});
     // load classes
 
-    window.loadClasses = async function () {
+   window.loadClasses = async function () {
 
     const list = document.getElementById("classList");
 
-    const snap = await getDocs(collection(db, "classes"));
+    try {
 
-    list.innerHTML = "";
+        const snap = await getDocs(collection(db, "classes"));
 
-    if (snap.empty) {
-        list.innerHTML = "<p>No classes yet.</p>";
-        return;
+        list.innerHTML = "";
+
+        if (snap.empty) {
+            list.innerHTML = "<p>No classes yet.</p>";
+            return;
+        }
+
+        snap.forEach(c => {
+
+            const d = c.data();
+
+            const div = document.createElement("div");
+            div.className = "card";
+
+            div.innerHTML = `
+                <b>${d.className || "Untitled Class"}</b><br><br>
+                <small>Students: ${(d.students || []).length}</small>
+            `;
+
+            list.appendChild(div);
+
+        });
+
+    } catch (err) {
+
+        console.error("LOAD CLASSES ERROR:", err);
+        list.innerHTML = "<p>Error loading classes.</p>";
+
     }
-
-    snap.forEach(c => {
-
-        const d = c.data();
-
-        const div = document.createElement("div");
-        div.className = "card";
-
-        div.innerHTML = `
-            <b>${d.className}</b><br><br>
-
-            <small>
-                Students: ${(d.students || []).length}
-            </small>
-        `;
-
-        list.appendChild(div);
-
-    });
 
 };
 
@@ -194,36 +200,50 @@ window.loadTests = async function () {
 
     const list = document.getElementById("testList");
 
-    const snap = await getDocs(collection(db, "tests"));
+    try {
 
-    list.innerHTML = "";
+        const snap = await getDocs(collection(db, "tests"));
 
-    snap.forEach(t => {
+        list.innerHTML = "";
 
-        const d = t.data();
+        if (snap.empty) {
+            list.innerHTML = "<p>No tests yet.</p>";
+            return;
+        }
 
-        const div = document.createElement("div");
-        div.className = "card";
+        snap.forEach(t => {
 
-        div.innerHTML = `
-            <b>${d.testName}</b><br><br>
+            const d = t.data();
 
-            <button onclick="window.location.href='test-results.html?id=${t.id}'">
-                View Results
-            </button>
+            const div = document.createElement("div");
+            div.className = "card";
 
-            <button onclick="openStudentView('${t.id}')">
-                Student View
-            </button>
+            div.innerHTML = `
+                <b>${d.testName || "Untitled"}</b><br><br>
 
-            <button class="btn-delete" onclick="deleteTest('${t.id}')">
-                Delete
-            </button>
-        `;
+                <button onclick="window.location.href='test-results.html?id=${t.id}'">
+                    View Results
+                </button>
 
-        list.appendChild(div);
+                <button onclick="openStudentView('${t.id}')">
+                    Student View
+                </button>
 
-    });
+                <button class="btn-delete" onclick="deleteTest('${t.id}')">
+                    Delete
+                </button>
+            `;
+
+            list.appendChild(div);
+
+        });
+
+    } catch (err) {
+
+        console.error("LOAD TESTS ERROR:", err);
+        list.innerHTML = "<p>Error loading tests.</p>";
+
+    }
 
 };
 
