@@ -155,16 +155,26 @@ document.getElementById("createClassBtn").addEventListener("click", createClass)
 
 onAuthStateChanged(auth, async (user) => {
 
-    if (!user) {
-        window.location.href = "teacher.html";
-        return;
+    console.log("AUTH STATE:", user);
+
+    if (user) {
+
+        currentUser = user;
+
+        await loadClasses();
+        await loadTests();
+
+    } else {
+
+        setTimeout(() => {
+
+            if (!auth.currentUser) {
+                window.location.href = "teacher.html";
+            }
+
+        }, 1500);
+
     }
-
-    currentUser = user;
-
-    await loadClasses();
-
-    await loadTests();
 
 });
 
