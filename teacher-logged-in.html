@@ -45,7 +45,13 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
 <label><input type="checkbox" id="ac_copyPaste"> Detect copy/paste</label><br>
 <label><input type="checkbox" id="ac_disableRightClick"> Disable right click</label><br>
 <label><input type="checkbox" id="ac_focusLoss"> Track focus loss / auto-submit</label><br>
-
+<label>Max Tab Switches Before Auto-Submit</label><br> 
+<input id="ac_maxTabs" type="number" value="3" min="0" max="20">
+<label>Lock Mode</label> <br>
+<select id="ac_lockMode">
+    <option value="soft">Soft Lock (warn only)</option> <br>
+    <option value="strict">Strict (auto-submit)</option>
+</select>
 <br>
 
 <div id="questions"></div>
@@ -265,14 +271,15 @@ window.saveTest = async function () {
         attemptLimit: 3,
 
         antiCheatSettings: {
-            tabSwitch: document.getElementById("ac_tabSwitch").checked,
-            fullscreen: document.getElementById("ac_fullscreen").checked,
-            copyPaste: document.getElementById("ac_copyPaste").checked,
-            disableRightClick: document.getElementById("ac_disableRightClick").checked,
-            focusLoss: document.getElementById("ac_focusLoss").checked
-        }
+    tabSwitch: document.getElementById("ac_tabSwitch").checked,
+    fullscreen: document.getElementById("ac_fullscreen").checked,
+    copyPaste: document.getElementById("ac_copyPaste").checked,
+    disableRightClick: document.getElementById("ac_disableRightClick").checked,
+    focusLoss: document.getElementById("ac_focusLoss").checked,
 
-    });
+    maxTabs: parseInt(document.getElementById("ac_maxTabs").value || "3"),
+    lockMode: document.getElementById("ac_lockMode").value
+}
 
     alert("Saved!");
 
