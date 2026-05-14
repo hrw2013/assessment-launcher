@@ -36,8 +36,19 @@ input[type="checkbox"] { width: auto; margin-right: 8px; }
     <option value="">Select Class</option>
 </select>
 
+    
 <br><br>
-
+<br>
+<label><b>Max Attempts</b></label>
+<select id="attemptLimit">
+    <option value="1">1 Attempt</option>
+    <option value="2">2 Attempts</option>
+    <option value="3" selected>3 Attempts</option>
+    <option value="5">5 Attempts</option>
+    <option value="999">Unlimited</option>
+</select>
+<br><br>
+    
 <h3>Strict Mode Options</h3>
 
 <label><input type="checkbox" id="ac_tabSwitch"> Log tab switching</label><br>
@@ -268,7 +279,7 @@ window.saveTest = async function () {
         teacherId: currentUser.uid,
         createdAt: serverTimestamp(),
 
-        attemptLimit: 3,
+       attemptLimit: parseInt(document.getElementById("attemptLimit").value),
 
         antiCheatSettings: {
     tabSwitch: document.getElementById("ac_tabSwitch").checked,
