@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Assessment</title>
+
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f7f6; }
         .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -12,13 +13,16 @@
         .btn-submit { background: #34a853; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; }
         .loading { font-style: italic; color: #666; }
     </style>
+
 </head>
 <body>
 
 <div class="container">
+
     <div id="testContent">
         <p class="loading">Loading your assessment...</p>
     </div>
+
 </div>
 
 <script type="module">
@@ -46,18 +50,28 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// =========================
+// FIREBASE
+// =========================
+
 const firebaseConfig = {
+
     apiKey: "AIzaSyDoMkENtcD1-RnLsxeWrzZGyJaOlvcRvzk",
     authDomain: "assessment-launcher439.firebaseapp.com",
     projectId: "assessment-launcher439",
     storageBucket: "assessment-launcher439.firebasestorage.app",
     messagingSenderId: "654911094206",
     appId: "1:654911094206:web:bf85399538c256c9c2cdef"
+
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// =========================
+// GLOBALS
+// =========================
 
 const urlParams = new URLSearchParams(window.location.search);
 const testId = urlParams.get("id");
@@ -73,8 +87,10 @@ let savedAnswers = {};
 onAuthStateChanged(auth, async (user) => {
 
     if (!user) {
+
         window.location.href = "student.html";
         return;
+
     }
 
     studentEmail = user.email;
@@ -85,6 +101,7 @@ onAuthStateChanged(auth, async (user) => {
             "<h2>No test ID provided.</h2>";
 
         return;
+
     }
 
     await loadTest(testId);
@@ -114,13 +131,11 @@ async function loadTest(id) {
         currentTest = testSnap.data();
 
         // =========================
-        // ATTEMPT LIMIT SYSTEM
+        // ATTEMPT LIMIT
         // =========================
 
-        const attemptsRef = collection(db, "results");
-
         const attemptQuery = query(
-            attemptsRef,
+            collection(db, "results"),
             where("testId", "==", id),
             where("studentName", "==", studentEmail)
         );
@@ -139,6 +154,7 @@ async function loadTest(id) {
                 `;
 
                 return;
+
             }
 
         }
@@ -155,16 +171,7 @@ async function loadTest(id) {
 
                 if (document.hidden) {
 
-                    setDoc(doc(
-                        db,
-                        "cheatLogs",
-                        testId + "_" + studentEmail + "_tab_" + Date.now()
-                    ), {
-                        testId,
-                        studentEmail,
-                        type: "tab-switch",
-                        time: serverTimestamp()
-                    });
+                    logCheat("tab-switch");
 
                     alert("Warning: Tab switching detected.");
 
@@ -175,7 +182,7 @@ async function loadTest(id) {
         }
 
         // =========================
-        // FULLSCREEN LOCK
+        // FULLSCREEN
         // =========================
 
         if (ac.fullscreen) {
@@ -203,37 +210,45 @@ async function loadTest(id) {
         }
 
         // =========================
-        // COPY PASTE BLOCK
+        // COPY / PASTE BLOCK
         // =========================
 
         if (ac.copyPaste) {
 
             document.addEventListener("copy", (e) => {
+
                 e.preventDefault();
-                logCheat("copy attempt");
+
+                logCheat("copy-attempt");
+
             });
 
             document.addEventListener("paste", (e) => {
+
                 e.preventDefault();
-                logCheat("paste attempt");
+
+                logCheat("paste-attempt");
+
             });
 
         }
 
         // =========================
-        // RIGHT CLICK DISABLE
+        // RIGHT CLICK BLOCK
         // =========================
 
         if (ac.disableRightClick) {
 
             document.addEventListener("contextmenu", (e) => {
+
                 e.preventDefault();
+
             });
 
         }
 
         // =========================
-        // FOCUS LOSS DETECTION
+        // FOCUS LOSS
         // =========================
 
         let focusLoss = 0;
@@ -244,11 +259,11 @@ async function loadTest(id) {
 
                 focusLoss++;
 
-                logCheat("focus lost");
+                logCheat("focus-loss");
 
                 if (focusLoss >= 3) {
 
-                    alert("Too many focus losses. Submitting test.");
+                    alert("Too many focus losses. Auto-submitting.");
 
                     submitTest();
 
@@ -259,7 +274,7 @@ async function loadTest(id) {
         }
 
         // =========================
-        // PAGE EXIT WARNING
+        // EXIT WARNING
         // =========================
 
         window.addEventListener("beforeunload", (e) => {
@@ -270,20 +285,24 @@ async function loadTest(id) {
         });
 
         // =========================
-        // HARD ANTI-RETAKE CHECK
+        // LOCK SYSTEM
         // =========================
 
         const lockId = id + "_" + studentEmail;
 
-        const resultsQuery = query(
+        const previousResultsQuery = query(
             collection(db, "results"),
             where("testId", "==", id),
             where("studentName", "==", studentEmail)
         );
 
-        const resultsSnap = await getDocs(resultsQuery);
+        const previousResultsSnap =
+            await getDocs(previousResultsQuery);
 
-        if (resultsSnap.size > 0 && currentTest.lockOnOpen === true) {
+        if (
+            previousResultsSnap.size > 0 &&
+            currentTest.lockOnOpen === true
+        ) {
 
             document.getElementById("testContent").innerHTML = `
                 <h2>Access Denied</h2>
@@ -325,7 +344,7 @@ async function loadTest(id) {
         }
 
         // =========================
-        // MARK IN PROGRESS
+        // IN PROGRESS
         // =========================
 
         await setDoc(
@@ -339,13 +358,14 @@ async function loadTest(id) {
         );
 
         // =========================
-        // LOAD DRAFT
+        // LOAD SAVED DRAFT
         // =========================
 
         const draftRef =
             doc(db, "testDrafts", lockId);
 
-        const draftSnap = await getDoc(draftRef);
+        const draftSnap =
+            await getDoc(draftRef);
 
         if (draftSnap.exists()) {
 
@@ -353,6 +373,10 @@ async function loadTest(id) {
                 draftSnap.data().answers || {};
 
         }
+
+        // =========================
+        // RENDER
+        // =========================
 
         renderTest();
 
@@ -371,7 +395,9 @@ async function loadTest(id) {
                         `input[name="${key}"][value="${value}"]`
                     );
 
-                if (input) input.checked = true;
+                if (input) {
+                    input.checked = true;
+                }
 
             });
 
@@ -394,16 +420,19 @@ async function loadTest(id) {
 
 function logCheat(type) {
 
-    setDoc(doc(
-        db,
-        "cheatLogs",
-        testId + "_" + studentEmail + "_" + Date.now()
-    ), {
-        testId,
-        studentEmail,
-        type,
-        time: serverTimestamp()
-    });
+    setDoc(
+        doc(
+            db,
+            "cheatLogs",
+            testId + "_" + studentEmail + "_" + Date.now()
+        ),
+        {
+            testId,
+            studentEmail,
+            type,
+            time: serverTimestamp()
+        }
+    );
 
 }
 
@@ -420,6 +449,7 @@ function renderTest() {
     currentTest.questions.forEach((q, i) => {
 
         html += `
+
             <div class="q-block">
 
                 <p>
@@ -447,14 +477,17 @@ function renderTest() {
                 </label>
 
             </div>
+
         `;
 
     });
 
     html += `
+
         <button class="btn-submit" onclick="submitTest()">
             Finish & Submit
         </button>
+
     `;
 
     document.getElementById("testContent").innerHTML = html;
@@ -462,7 +495,7 @@ function renderTest() {
 }
 
 // =========================
-// AUTO SAVE
+// AUTOSAVE
 // =========================
 
 setInterval(async () => {
@@ -477,7 +510,9 @@ setInterval(async () => {
             document.querySelector(`input[name="q${i}"]:checked`);
 
         if (selected) {
+
             answers[`q${i}`] = selected.value;
+
         }
 
     });
@@ -485,11 +520,15 @@ setInterval(async () => {
     try {
 
         await setDoc(
-            doc(db, "testDrafts", testId + "_" + studentEmail),
+            doc(
+                db,
+                "testDrafts",
+                testId + "_" + studentEmail
+            ),
             {
-                testId: testId,
-                studentEmail: studentEmail,
-                answers: answers,
+                testId,
+                studentEmail,
+                answers,
                 updatedAt: serverTimestamp()
             }
         );
@@ -508,60 +547,85 @@ setInterval(async () => {
 
 window.submitTest = async function () {
 
-    const btn = document.querySelector(".btn-submit");
+    const btn =
+        document.querySelector(".btn-submit");
 
     if (btn) {
+
         btn.disabled = true;
         btn.innerText = "Submitting...";
+
     }
 
     let score = 0;
 
-    const total = currentTest.questions.length;
+    const total =
+        currentTest.questions.length;
 
     currentTest.questions.forEach((q, i) => {
 
         const selected =
             document.querySelector(`input[name="q${i}"]:checked`);
 
-        if (selected && selected.value === q.correct) {
+        if (
+            selected &&
+            selected.value === q.correct
+        ) {
+
             score++;
+
         }
 
     });
 
     try {
 
-        await addDoc(collection(db, "results"), {
+        // SAVE RESULT
 
-            testId: testId,
-            testName: currentTest.testName,
-            studentName: studentEmail,
-            score: score,
-            total: total,
-            percentage: Math.round((score / total) * 100),
-            completedAt: serverTimestamp()
+        await addDoc(
+            collection(db, "results"),
+            {
+                testId,
+                testName: currentTest.testName,
+                studentName: studentEmail,
+                score,
+                total,
+                percentage: Math.round((score / total) * 100),
+                completedAt: serverTimestamp()
+            }
+        );
 
-        });
+        // MARK COMPLETE
 
         await setDoc(
-            doc(db, "inProgressTests", testId + "_" + studentEmail),
+            doc(
+                db,
+                "inProgressTests",
+                testId + "_" + studentEmail
+            ),
             {
-                testId: testId,
-                studentEmail: studentEmail,
+                testId,
+                studentEmail,
                 status: "completed",
                 completedAt: serverTimestamp()
             }
         );
 
+        // CLEAR DRAFT
+
         await setDoc(
-            doc(db, "testDrafts", testId + "_" + studentEmail),
+            doc(
+                db,
+                "testDrafts",
+                testId + "_" + studentEmail
+            ),
             {
                 cleared: true
             }
         );
 
         document.getElementById("testContent").innerHTML = `
+
             <h2>Submitted!</h2>
 
             <p>
@@ -571,6 +635,7 @@ window.submitTest = async function () {
             <button onclick="window.location.href='student-logged-in.html'">
                 Return to Dashboard
             </button>
+
         `;
 
     } catch (e) {
@@ -580,8 +645,10 @@ window.submitTest = async function () {
         alert("Error submitting: " + e.message);
 
         if (btn) {
+
             btn.disabled = false;
             btn.innerText = "Finish & Submit";
+
         }
 
     }
