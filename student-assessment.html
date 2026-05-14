@@ -135,27 +135,27 @@ async function loadTest(id) {
         // ATTEMPT LIMIT
         // =========================
 
-        const attemptQuery = query(
-            collection(db, "results"),
-            where("testId", "==", id),
-            where("studentName", "==", studentEmail)
-        );
+      const attemptQuery = query(
+    collection(db, "results"),
+    where("testId", "==", id),
+    where("studentName", "==", studentEmail)
+);
 
-        const attemptSnap = await getDocs(attemptQuery);
+const attemptSnap = await getDocs(attemptQuery);
 
-        const attemptCount = attemptSnap.size;
+const attemptCount = attemptSnap.size;
 
-        if (currentTest.attemptLimit !== 999 && attemptCount >= currentTest.attemptLimit) {
+const limit = currentTest.attemptLimit ?? 999;
 
-            document.getElementById("testContent").innerHTML = `
-                <h2>Access Denied</h2>
-                <p>You have used all allowed attempts.</p>
-            `;
+if (limit !== 999 && attemptCount >= limit) {
 
-            return;
+    document.getElementById("testContent").innerHTML = `
+        <h2>Access Denied</h2>
+        <p>You have used all allowed attempts (${limit}).</p>
+    `;
 
-        }
-
+    return;
+}
         const ac = currentTest.antiCheatSettings || {};
 
         // =========================
